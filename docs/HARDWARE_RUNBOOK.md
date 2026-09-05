@@ -197,6 +197,66 @@ Gate 3's exit test. No misfires, no stuck keys.
 its own "how to answer" note in that file. Fill in the answer and the date; if something is
 still unknown after trying, write "still unknown" rather than leaving it blank.
 
+
+## §5 · Key Lab — resolve the five unknowns
+
+Gate 4's exit test: a findings JSON with a verdict for every unresolved function, and every
+function that resolved now works from the keypad.
+
+**Read this first.** Key Lab's Power list starts with Consumer `0x0030`. Do not run the Power
+function until you are willing for the projector to switch off, and do §3's standby test after
+it, not before — open question 2 is what decides whether Bluetooth can ever turn it back *on*.
+If the answer turns out to be no, the projector's own button is the only way back.
+
+Point the projector at something where a change is unmistakable: a menu with a visible focus
+ring for Flip and Keystone, a picture with visible sharpness for Focus.
+
+### 5.1 · Walk the candidate lists
+
+Open the **Key Lab** tab. It starts at Focus + , candidate 1 of 4.
+
+1. **Send** transmits exactly one key-down/key-up pair. Nothing else is transmitted, so
+   whatever the projector does is attributable to that one usage.
+2. Watch the projector, then mark it:
+   - **It worked** — the function did what its name says. The candidate is promoted into the
+     key map immediately; go back to the **Keypad** tab and confirm the key is now drawn solid
+     rather than dashed, and that pressing it does the same thing. Key Lab advances to the next
+     function.
+   - **No effect** — nothing happened. Advances to the next candidate.
+   - **Side effect** — the projector did *something*, but not this function. Record it. This is
+     the most valuable verdict in the file: it says the usage reaches the projector and is bound
+     to something else, which narrows the search far more than silence does.
+3. When a list runs out, Key Lab moves to that function's swept range if it has one.
+
+### 5.2 · Before you trust a sweep
+
+**Sweep mode proves nothing until open question 11 is answered.** It walks a range at 700 ms per
+step, and if the A1 coalesces or debounces presses at that rate a real hit can pass unseen.
+
+Answer it first: on the keypad, press **Vol +** sixteen times at roughly the sweep's pace and
+count the volume steps. Sixteen steps means the cadence is safe. Fewer means slow down — do the
+range by hand in **Manual** mode instead, and record that in question 11.
+
+Then, for Screen flip, answer question 12 the same way before sweeping F13–F24: send keyboard
+`0x04` (the letter A) in Manual mode over a text field. If nothing arrives, the keyboard
+collection is not reaching applications and the whole F13–F24 sweep is meaningless.
+
+### 5.3 · Manual mode
+
+Type any usage by hand. Keyboard usages are `0x00`–`0xFF`; consumer usages are
+`0x0000`–`0x03FF` and **not** the full 16 bits — the descriptor declares that ceiling
+deliberately, because a wider range makes the host's HID parser reject the whole descriptor.
+
+### 5.4 · Export
+
+**Export JSON** writes the findings file wherever you choose. Do this even if every verdict is
+`no_effect`: a function with no `mapped` verdict is a real result, and it is what opens the
+fallback in `BUILD_SPEC.md` §9.
+
+A function that survives Key Lab unmapped stays dashed on the keypad and transmits nothing.
+That is the app being honest, not the app being broken. Do not hand-edit the key map to make a
+key look finished.
+
 ## §6 · Sign-off
 
 - `TEST_PLAN.md`'s manual matrix filled in, one row per function.
