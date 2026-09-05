@@ -47,6 +47,9 @@ object A1Colors {
 
     /** Fill of the active bottom tab. */
     val TabActive = Color(0xFF2C455D)
+
+    /** The 1 dp dividers between tab cells. */
+    val TabDivider = Paper.copy(alpha = 0.15f)
 }
 
 /** The metrics of DESIGN_SPEC. */
@@ -103,4 +106,16 @@ object A1Type {
     val Body = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp, color = A1Colors.Paper)
     val Hint = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 12.sp, color = A1Colors.MutedLabel)
     val Mono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = A1Colors.MutedLabel)
+    val TabLabel = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontSize = 10.sp,
+        letterSpacing = 0.12.em,
+        color = A1Colors.Paper,
+    )
+    val StepLabel = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontSize = 10.sp,
+        letterSpacing = 0.14.em,
+        color = A1Colors.MutedLabel,
+    )
 }

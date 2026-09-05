@@ -1,5 +1,6 @@
 package com.narmeshnigam.a1remote.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,52 +12,46 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
 import com.narmeshnigam.a1remote.service.LinkStage
 import com.narmeshnigam.a1remote.service.LinkState
-import com.narmeshnigam.a1remote.service.SendResult
 import com.narmeshnigam.a1remote.service.WireLogEntry
+import com.narmeshnigam.a1remote.ui.theme.A1Colors
 import com.narmeshnigam.a1remote.ui.theme.A1Dimens
 import com.narmeshnigam.a1remote.ui.theme.A1Type
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**
- * Gate 1's whole user interface: the result of every platform call on the way to a registration,
- * one button that sends Arrow Down, and the wire log.
+ * The diagnostic panel, reached by long-pressing the status row (DESIGN_SPEC, wire log).
  *
- * This is a diagnostic screen, not the remote. The keypad of DESIGN_SPEC arrives at Gate 2.
+ * It shows the result of every platform call on the way to a registration, so a ROM-level
+ * refusal reads as itself, plus the last 50 reports the app tried to transmit.
  */
 @Composable
-fun DebugScreen(
+fun DiagnosticsSheet(
     state: LinkState,
     wireLog: List<WireLogEntry>,
-    lastSendResult: SendResult?,
-    notificationsDenied: Boolean,
     onRegister: () -> Unit,
     onUnregister: () -> Unit,
-    onSendArrowDown: () -> Unit,
     onClearLog: () -> Unit,
+    onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(A1Colors.Field, RectangleShape)
             .padding(horizontal = A1Dimens.ScreenPadding, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            A1LinkDot(live = state.isConnected, modifier = Modifier.padding(end = 10.dp))
-            Column {
-                BasicText(text = state.hostName ?: "No host", style = A1Type.HostName)
-                BasicText(text = stageLabel(state.stage), style = A1Type.StatusSubLabel)
-            }
-        }
+        BasicText(text = "Diagnostics", style = A1Type.ScreenTitle)
 
         A1Panel(modifier = Modifier.fillMaxWidth()) {
             Column {
+                A1DetailRow("Stage", stageLabel(state.stage))
                 A1DetailRow("BluetoothManager", flag(state.bluetoothManagerAcquired))
                 A1DetailRow("Adapter", flag(state.adapterAcquired))
                 A1DetailRow("Adapter enabled", flag(state.adapterEnabled))
@@ -68,46 +63,12 @@ fun DebugScreen(
             }
         }
 
-        state.message?.let { message ->
-            BasicText(text = message, style = A1Type.Body)
-        }
-
-        if (notificationsDenied) {
-            BasicText(
-                text = "Notification permission refused — the service notification is hidden and " +
-                    "the system will stop the link sooner.",
-                style = A1Type.Hint,
-            )
-        }
-
-        A1Key(
-            label = "Send arrow down",
-            onClick = onSendArrowDown,
-            enabled = state.isConnected,
-            filled = true,
-            modifier = Modifier.fillMaxWidth().height(A1Dimens.KeyHeight),
-        )
-
-        lastSendResult?.let { result ->
-            BasicText(text = "Last send: ${result.name}", style = A1Type.Hint)
-        }
+        state.message?.let { message -> BasicText(text = message, style = A1Type.Body) }
 
         Row(horizontalArrangement = Arrangement.spacedBy(A1Dimens.Gutter)) {
-            A1Key(
-                label = "Register",
-                onClick = onRegister,
-                modifier = Modifier.weight(1f).height(A1Dimens.KeyHeight),
-            )
-            A1Key(
-                label = "Unregister",
-                onClick = onUnregister,
-                modifier = Modifier.weight(1f).height(A1Dimens.KeyHeight),
-            )
-            A1Key(
-                label = "Clear log",
-                onClick = onClearLog,
-                modifier = Modifier.weight(1f).height(A1Dimens.KeyHeight),
-            )
+            A1Key("Register", onRegister, Modifier.weight(1f).height(A1Dimens.KeyHeight))
+            A1Key("Unregister", onUnregister, Modifier.weight(1f).height(A1Dimens.KeyHeight))
+            A1Key("Clear log", onClearLog, Modifier.weight(1f).height(A1Dimens.KeyHeight))
         }
 
         BasicText(text = "WIRE LOG", style = A1Type.StatusSubLabel)
@@ -123,6 +84,13 @@ fun DebugScreen(
                 )
             }
         }
+
+        A1Key(
+            label = "Close",
+            style = KeyStyle.PRIMARY,
+            onPress = onClose,
+            modifier = Modifier.fillMaxWidth().height(A1Dimens.KeyHeight),
+        )
     }
 }
 

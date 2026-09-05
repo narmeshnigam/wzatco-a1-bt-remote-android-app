@@ -1,5 +1,7 @@
 package com.narmeshnigam.a1remote.ui
 
+import android.bluetooth.BluetoothAdapter
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -8,27 +10,35 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.narmeshnigam.a1remote.hid.RemoteFunction
-import com.narmeshnigam.a1remote.service.HidLink
-import com.narmeshnigam.a1remote.service.HidService
-import com.narmeshnigam.a1remote.service.SendResult
 import com.narmeshnigam.a1remote.ui.theme.A1Colors
+import com.narmeshnigam.a1remote.ui.theme.A1Dimens
+import com.narmeshnigam.a1remote.vm.RemoteViewModel
+
+/** How long the phone stays discoverable when Setup asks for it. */
+private const val DISCOVERABLE_SECONDS = 300
 
 /**
- * The Gate 1 shell: the permission rationale until the required permissions are held, then the
- * debug screen. Nothing is asked for on cold launch (BUILD_SPEC §7).
+ * The app shell: the permission rationale until the required permissions are held, then the
+ * four screens of BUILD_SPEC §6 behind the tab bar of DESIGN_SPEC.
  */
 @Composable
 fun A1App(modifier: Modifier = Modifier) {
@@ -38,7 +48,6 @@ fun A1App(modifier: Modifier = Modifier) {
     var hasRequired by remember { mutableStateOf(Permissions.hasRequired(context)) }
     var hasOptional by remember { mutableStateOf(Permissions.hasOptional(context)) }
     var asked by remember { mutableStateOf(false) }
-    var lastSendResult by remember { mutableStateOf<SendResult?>(null) }
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -54,25 +63,9 @@ fun A1App(modifier: Modifier = Modifier) {
         hasOptional = Permissions.hasOptional(context)
     }
 
-    LaunchedEffect(hasRequired) {
-        if (hasRequired) HidService.start(context)
-    }
-
-    val state by HidLink.state.collectAsStateWithLifecycle()
-    val wireLog by HidLink.wireLog.collectAsStateWithLifecycle()
-
-    Box(modifier = modifier.fillMaxSize().background(A1Colors.Field)) {
+    Box(modifier = modifier.fillMaxSize().background(A1Colors.Field, RectangleShape)) {
         if (hasRequired) {
-            DebugScreen(
-                state = state,
-                wireLog = wireLog,
-                lastSendResult = lastSendResult,
-                notificationsDenied = !hasOptional,
-                onRegister = { HidService.start(context) },
-                onUnregister = { HidService.stop(context) },
-                onSendArrowDown = { lastSendResult = HidLink.sendKey(RemoteFunction.DOWN) },
-                onClearLog = { HidLink.clearWireLog() },
-            )
+            RemoteShell(notificationsDenied = !hasOptional)
         } else {
             val permanentlyDenied = asked &&
                 Permissions.required().none { permission ->
@@ -82,15 +75,108 @@ fun A1App(modifier: Modifier = Modifier) {
                 permanentlyDenied = permanentlyDenied,
                 notificationsDenied = asked && !hasOptional,
                 onGrant = { launcher.launch(Permissions.all().toTypedArray()) },
-                onOpenSettings = {
-                    context.startActivity(
-                        Intent(
-                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                            Uri.fromParts("package", context.packageName, null),
-                        ),
-                    )
-                },
+                onOpenSettings = { context.openAppSettings() },
             )
         }
     }
+}
+
+@Composable
+private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val viewModel: RemoteViewModel = viewModel()
+
+    val state by viewModel.link.collectAsStateWithLifecycle()
+    val wireLog by viewModel.wireLog.collectAsStateWithLifecycle()
+    val bindings by viewModel.bindings.collectAsStateWithLifecycle()
+
+    var screen by rememberSaveable { mutableStateOf(A1Screen.KEYPAD) }
+    var diagnosticsOpen by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) { viewModel.connect() }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            StatusRow(
+                state = state,
+                powerVerified = viewModel.isVerified(RemoteFunction.POWER),
+                onPower = { viewModel.press(RemoteFunction.POWER) },
+                onOpenDiagnostics = { diagnosticsOpen = true },
+            )
+
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                when (screen) {
+                    A1Screen.KEYPAD -> KeypadScreen(
+                        bindings = bindings,
+                        connected = state.isConnected,
+                        onPress = viewModel::press,
+                        onOpenCursor = { screen = A1Screen.CURSOR },
+                    )
+
+                    A1Screen.CURSOR -> PlaceholderScreen(
+                        title = "Cursor",
+                        body = "The trackpad arrives at Gate 3, with relative mouse deltas, tap to " +
+                            "click and a two-finger tap for Back.",
+                    )
+
+                    A1Screen.KEY_LAB -> PlaceholderScreen(
+                        title = "Key Lab",
+                        body = "Candidate discovery arrives at Gate 4. Until then Focus, Source, " +
+                            "Flip and Keystone stay unverified.",
+                    )
+
+                    A1Screen.SETUP -> SetupScreen(
+                        state = state,
+                        onConnect = viewModel::connect,
+                        onDisconnect = viewModel::disconnect,
+                        onMakeDiscoverable = { context.requestDiscoverable() },
+                    )
+                }
+            }
+
+            if (notificationsDenied) {
+                NotificationWarning(modifier = Modifier.fillMaxWidth())
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(A1Dimens.Hairline)
+                    .background(A1Colors.KeyBorder, RectangleShape),
+            )
+            A1TabBar(current = screen, onSelect = { screen = it })
+        }
+
+        if (diagnosticsOpen) {
+            DiagnosticsSheet(
+                state = state,
+                wireLog = wireLog,
+                onRegister = viewModel::connect,
+                onUnregister = viewModel::disconnect,
+                onClearLog = viewModel::clearWireLog,
+                onClose = { diagnosticsOpen = false },
+            )
+        }
+    }
+}
+
+private fun Context.openAppSettings() {
+    startActivity(
+        Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", packageName, null),
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
+}
+
+/**
+ * Registering as a HID device does not make the phone discoverable, and the projector has to be
+ * the side that initiates the pairing. This is the system's own consent dialog.
+ */
+private fun Context.requestDiscoverable() {
+    startActivity(
+        Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
+            .putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_SECONDS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
 }

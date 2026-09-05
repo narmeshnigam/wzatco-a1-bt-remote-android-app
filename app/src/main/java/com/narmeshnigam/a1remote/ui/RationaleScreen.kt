@@ -86,15 +86,15 @@ fun RationaleScreen(
             )
             A1Key(
                 label = "Open app settings",
-                onClick = onOpenSettings,
-                filled = true,
+                onPress = onOpenSettings,
+                style = KeyStyle.PRIMARY,
                 modifier = Modifier.fillMaxWidth().height(A1Dimens.KeyHeight),
             )
         } else {
             A1Key(
                 label = "Grant permissions",
-                onClick = onGrant,
-                filled = true,
+                onPress = onGrant,
+                style = KeyStyle.PRIMARY,
                 modifier = Modifier.fillMaxWidth().height(A1Dimens.KeyHeight),
             )
         }

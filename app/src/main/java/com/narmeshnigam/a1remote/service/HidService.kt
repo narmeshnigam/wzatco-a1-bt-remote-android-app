@@ -19,7 +19,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
-import com.narmeshnigam.a1remote.hid.DefaultKeyMap
+import com.narmeshnigam.a1remote.data.KeyMaps
 import com.narmeshnigam.a1remote.hid.HidDescriptor
 import com.narmeshnigam.a1remote.hid.HidReports
 import com.narmeshnigam.a1remote.hid.RemoteFunction
@@ -329,7 +329,7 @@ class HidService :
 
     @SuppressLint("MissingPermission") // guarded by hasBluetoothPermission()
     override fun sendKey(function: RemoteFunction): SendResult {
-        val binding = DefaultKeyMap[function]
+        val binding = KeyMaps.get(this)[function]
         val down = binding.report
         if (down == null) {
             note(function.name, "no mapping — nothing sent")
@@ -343,7 +343,7 @@ class HidService :
         val up = HidReports.releaseFor(down)
         return try {
             val accepted = hid.sendReport(device, down.id, down.data)
-            note(function.name, "down id=${down.id} [${down.hex()}] -> $accepted")
+            note(function.name, "${binding.usageName} id=${down.id} [${down.hex()}] -> $accepted")
             if (accepted) SendResult.SENT else SendResult.FAILED
         } finally {
             // The key-up is guaranteed (BUILD_SPEC §4). A key stuck down on the projector cannot

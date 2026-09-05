@@ -37,6 +37,9 @@ object DefaultKeyMap {
      */
     operator fun get(function: RemoteFunction): KeyBinding = bindings.getValue(function)
 
+    /** The whole shipped table. */
+    fun all(): Map<RemoteFunction, KeyBinding> = bindings
+
     /** The alternate Back mapping KEY_LAB.md records, for Key Lab to fall back on. */
     fun backAlternate(): HidReport = HidReports.key(KeyboardUsage.ESCAPE)
 
