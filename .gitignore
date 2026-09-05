@@ -12,3 +12,7 @@ local.properties
 
 # Agent worktrees
 .claude/worktrees/
+
+# Local signing material — back these up outside the repo
+keystore.properties
+*.jks
