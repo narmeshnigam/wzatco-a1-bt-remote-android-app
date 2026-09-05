@@ -18,10 +18,24 @@ An Android app that replaces the lost physical remote of a **WZATCO Alpha A1** p
 | `docs/TEST_PLAN.md` | Unit, instrumented and manual test requirements. |
 | `docs/OPEN_QUESTIONS.md` | Hardware unknowns. Answer from the device; never design around a guess. |
 | `docs/design/` | The design artifacts as HTML — open in a browser to see the intended UI. |
+| `docs/GATE1_RUNBOOK.md` | Step-by-step for running the Gate 1 exit test on the phone and the projector. |
 
 ## Status
 
-Specification and design complete. No app code yet. Start at `AGENT_TASKS.md` Gate 1.
+**Gate 1 built, exit test not yet run.** The Gradle project, the HID report descriptor and its
+report builders, `HidService`, the permission rationale flow and a one-button debug screen are in
+place, and `./gradlew ktlintCheck detekt test lintDebug assembleDebug` is clean with 33 unit tests
+passing. What Gate 1 actually proves can only be proved on the hardware — see
+`docs/GATE1_RUNBOOK.md`. Gate 2 does not start until it passes.
+
+## Build
+
+```bash
+./gradlew ktlintCheck detekt test assembleDebug
+```
+
+Requires JDK 17+ and an Android SDK with platform 36 installed. `local.properties` points at the
+SDK and is not committed.
 
 ## The one hard constraint
 

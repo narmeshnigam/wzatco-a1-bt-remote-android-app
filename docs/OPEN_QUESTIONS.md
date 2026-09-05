@@ -10,9 +10,15 @@ Answer these from the hardware. Record the answer and the date. Do not design ar
 | 4 | Are Focus, Source, Flip and Keystone reachable as input events at all? | If a vendor service above the input stack owns them, no HID usage will ever reach them and the fallback path opens. | | |
 | 5 | Does the A1 remember the pairing across a full power cycle? | Decides whether Setup is a one-time flow or a recurring chore. | | |
 | 6 | What is the phone model and Android version used for the build? | Needed for the findings file and for reproducing any ROM-specific behaviour. | | |
+| 7 | Does the A1's own Bluetooth settings screen offer pairing with an input device at all, or only with audio devices? | The phone cannot initiate the HID connection until the projector has bonded with it. If the A1 only pairs speakers and headsets, Gate 1 cannot pass however well the phone registers. | | |
+| 8 | Does OxygenOS keep `HidService` alive with battery optimisation disabled, or does it stop the service anyway? | Decides whether the remote survives a screen-off, and whether Gate 3's reconnect logic is a convenience or the only thing that makes the app usable. | | |
 
 **Until question 2 is answered, the app must not present a power-on affordance it cannot honour.**
 
 ## How to answer 2 and 3 without guessing
 
 With the phone paired and the projector awake: send Power, note what the projector does and whether the HID link stays connected. Then, from standby, send any key and watch for a reaction. If the link drops the moment the projector sleeps, Bluetooth wake is impossible and question 2 is answered no.
+
+## How to answer 1, 7 and 8
+
+Run `GATE1_RUNBOOK.md`. It records what to look for and where.

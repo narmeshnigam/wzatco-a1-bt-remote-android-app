@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+  <!-- BUILD_SPEC §7. There is deliberately no INTERNET permission and no location permission. -->
+  <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+  <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+  <!-- Not in BUILD_SPEC §7: without it the foreground-service notification is hidden on API 33+,
+       and that notification is what keeps an aggressive ROM from stopping the link. -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <uses-permission android:name="android.permission.VIBRATE" />
+
+  <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
+
+  <application
+      android:allowBackup="false"
+      android:dataExtractionRules="@xml/data_extraction_rules"
+      android:fullBackupContent="false"
+      android:icon="@drawable/ic_launcher"
+      android:label="@string/app_name"
+      android:supportsRtl="true"
+      android:theme="@style/Theme.A1Remote">
+
+    <activity
+        android:name=".MainActivity"
+        android:exported="true"
+        android:launchMode="singleTop">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+
+    <service
+        android:name=".service.HidService"
+        android:exported="false"
+        android:foregroundServiceType="connectedDevice"
+        tools:targetApi="29" />
+  </application>
+</manifest>

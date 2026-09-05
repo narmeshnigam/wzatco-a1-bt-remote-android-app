@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Mirrors ui/theme/A1Theme.kt. Kept here only for window and launcher chrome. -->
+  <color name="field">#1D2D3D</color>
+  <color name="launcher_background">#1D2D3D</color>
+</resources>

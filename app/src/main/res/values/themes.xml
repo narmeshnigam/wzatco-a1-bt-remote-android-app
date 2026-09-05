@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Window-level chrome only. All in-app visuals come from ui/theme/A1Theme.kt. -->
+  <style name="Theme.A1Remote" parent="android:Theme.Material.NoActionBar">
+    <item name="android:windowBackground">@color/field</item>
+    <item name="android:statusBarColor">@color/field</item>
+    <item name="android:navigationBarColor">@color/field</item>
+  </style>
+</resources>

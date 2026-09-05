@@ -1,0 +1,39 @@
+# Overrides on top of detekt's default config (buildUponDefaultConfig = true).
+
+build:
+  maxIssues: 0
+
+complexity:
+  LongMethod:
+    excludes: ['**/hid/**', '**/ui/**', '**/test/**', '**/androidTest/**']
+  LongParameterList:
+    ignoreAnnotated: ['Composable']
+  TooManyFunctions:
+    # An Android Service starts at four framework overrides before it does any work of its own,
+    # and implementing an interface is not a size problem. Count what the class actually adds.
+    ignoreOverridden: true
+    ignoreAnnotatedFunctions: ['Composable']
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    excludes: ['**/ui/**']
+
+style:
+  MagicNumber:
+    # Descriptor bytes, HID usages, and design-spec dp/sp values are literals by nature.
+    excludes: ['**/hid/**', '**/ui/**', '**/test/**', '**/androidTest/**']
+  MaxLineLength:
+    maxLineLength: 120
+  UnusedPrivateMember:
+    active: true
+  ReturnCount:
+    max: 6
+    excludeGuardClauses: true
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: true
+  SwallowedException:
+    active: true

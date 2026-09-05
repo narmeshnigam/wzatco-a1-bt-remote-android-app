@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">WZATCO A1 Remote</string>
+  <string name="hid_service_channel_name">Remote link</string>
+  <string name="hid_service_channel_description">Shown while the phone is registered as a Bluetooth remote.</string>
+</resources>
