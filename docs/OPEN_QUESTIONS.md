@@ -23,7 +23,7 @@ With the phone paired and the projector awake: send Power, note what the project
 
 ## How to answer 1, 7 and 8
 
-Run `GATE1_RUNBOOK.md`. It records what to look for and where.
+Run `HARDWARE_RUNBOOK.md` §1. It records what to look for and where.
 
 ## How to answer 9 and 10
 

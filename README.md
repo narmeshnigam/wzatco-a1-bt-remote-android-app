@@ -18,7 +18,7 @@ An Android app that replaces the lost physical remote of a **WZATCO Alpha A1** p
 | `docs/TEST_PLAN.md` | Unit, instrumented and manual test requirements. |
 | `docs/OPEN_QUESTIONS.md` | Hardware unknowns. Answer from the device; never design around a guess. |
 | `docs/design/` | The design artifacts as HTML — open in a browser to see the intended UI. |
-| `docs/GATE1_RUNBOOK.md` | Step-by-step for running the Gate 1 exit test on the phone and the projector. |
+| `docs/HARDWARE_RUNBOOK.md` | The running order for the hardware test session, worst-consequence first. |
 
 ## Status
 
@@ -26,7 +26,7 @@ An Android app that replaces the lost physical remote of a **WZATCO Alpha A1** p
 report builders, `HidService`, the permission rationale flow and a one-button debug screen are in
 place, and `./gradlew ktlintCheck detekt test lintDebug assembleDebug` is clean with 33 unit tests
 passing. What Gate 1 actually proves can only be proved on the hardware — see
-`docs/GATE1_RUNBOOK.md`. Gate 2 does not start until it passes.
+`docs/HARDWARE_RUNBOOK.md`. Gate 2 does not start until it passes.
 
 ## Build
 
