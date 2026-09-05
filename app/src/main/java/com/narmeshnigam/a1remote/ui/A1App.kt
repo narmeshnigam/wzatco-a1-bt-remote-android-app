@@ -113,10 +113,8 @@ private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modif
                         onOpenCursor = { screen = A1Screen.CURSOR },
                     )
 
-                    A1Screen.CURSOR -> PlaceholderScreen(
-                        title = "Cursor",
-                        body = "The trackpad arrives at Gate 3, with relative mouse deltas, tap to " +
-                            "click and a two-finger tap for Back.",
+                    A1Screen.CURSOR -> CursorScreen(
+                        onReturnToKeypad = { screen = A1Screen.KEYPAD },
                     )
 
                     A1Screen.KEY_LAB -> PlaceholderScreen(

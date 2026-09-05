@@ -103,6 +103,7 @@ fun StatusRow(
 @Composable
 private fun PowerKey(enabled: Boolean, verified: Boolean, onFire: () -> Unit, modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
+    val haptics = rememberHaptics()
     var armed by remember { mutableStateOf(false) }
     val tint = if (verified) A1Colors.Paper else A1Colors.UnverifiedLabel
 
@@ -123,10 +124,14 @@ private fun PowerKey(enabled: Boolean, verified: Boolean, onFire: () -> Unit, mo
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     var fired = false
+                    haptics.tick()
                     val job = scope.launch {
                         delay(POWER_HOLD_MS)
                         armed = true
                         fired = true
+                        // BUILD_SPEC §5: the second tick is the only signal that the hold
+                        // completed, so it fires before the report, not after it.
+                        haptics.confirm()
                         onFire()
                     }
                     try {

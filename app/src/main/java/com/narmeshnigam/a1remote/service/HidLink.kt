@@ -52,6 +52,14 @@ object HidLink {
     /** Transmit one function as a key-down/key-up pair. */
     fun sendKey(function: RemoteFunction): SendResult = transport?.sendKey(function) ?: SendResult.NO_SERVICE
 
+    /** Transmit one arbitrary report as a key-down/key-up pair. Key Lab's candidate probe. */
+    fun sendPress(report: HidReport, label: String): SendResult =
+        transport?.sendPress(report, label) ?: SendResult.NO_SERVICE
+
+    /** Transmit one relative-motion report, which has no release. Cursor mode only. */
+    fun sendMotion(report: HidReport, label: String): SendResult =
+        transport?.sendMotion(report, label) ?: SendResult.NO_SERVICE
+
     internal fun update(block: (LinkState) -> LinkState) = _state.update(block)
 
     internal fun reset() {

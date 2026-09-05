@@ -22,6 +22,8 @@ import com.narmeshnigam.a1remote.hid.RemoteFunction
 import com.narmeshnigam.a1remote.ui.theme.A1Dimens
 import com.narmeshnigam.a1remote.ui.theme.A1Icons
 import com.narmeshnigam.a1remote.ui.theme.A1Type
+import com.narmeshnigam.a1remote.vm.RepeatBehaviour
+import com.narmeshnigam.a1remote.vm.repeatBehaviour
 
 /**
  * The keypad of DESIGN_SPEC: a 258 dp D-pad block over four rows of three.
@@ -49,9 +51,11 @@ fun KeypadScreen(
             bindings = bindings,
             connected = connected,
             onPress = onPress,
+            // fill = false lets the block take at most its specified 258 dp on a tall screen and
+            // shrink on a short one, so the geometry never scrolls and never clips.
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f, fill = false)
                 .heightIn(max = A1Dimens.DpadBlock),
         )
 
@@ -110,6 +114,7 @@ private fun RowScope.FunctionKey(
         style = styleOf(bindings[function]),
         enabled = connected,
         onPress = { onPress(function) },
+        repeating = function.repeatBehaviour() == RepeatBehaviour.REPEATING,
         modifier = Modifier.weight(1f).fillMaxHeight(),
     )
 }
@@ -180,6 +185,7 @@ private fun RowScope.DPadKey(
         style = styleOf(bindings[function]),
         enabled = connected,
         onPress = { onPress(function) },
+        repeating = function.repeatBehaviour() == RepeatBehaviour.REPEATING,
         modifier = Modifier.weight(1f).fillMaxHeight(),
     )
 }

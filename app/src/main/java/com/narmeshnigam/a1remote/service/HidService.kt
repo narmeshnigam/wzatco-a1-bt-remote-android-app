@@ -23,7 +23,15 @@ import com.narmeshnigam.a1remote.data.KeyMaps
 import com.narmeshnigam.a1remote.hid.HidDescriptor
 import com.narmeshnigam.a1remote.hid.HidReport
 import com.narmeshnigam.a1remote.hid.HidReports
+import com.narmeshnigam.a1remote.hid.KeyPressSender
 import com.narmeshnigam.a1remote.hid.RemoteFunction
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
 /**
@@ -41,13 +49,19 @@ class HidService :
     HidTransport {
 
     private val reportExecutor = Executors.newSingleThreadExecutor()
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val notification by lazy { LinkNotification(this) }
 
     private var adapter: BluetoothAdapter? = null
     private var proxy: BluetoothHidDevice? = null
+    private var reconnectJob: Job? = null
 
     @Volatile
     private var host: BluetoothDevice? = null
+
+    /** The host to retry after an unexpected drop. Cleared on a deliberate unplug. */
+    @Volatile
+    private var lastHost: BluetoothDevice? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -82,6 +96,8 @@ class HidService :
     override fun onDestroy() {
         Log.i(TAG, "onDestroy")
         HidLink.transport = null
+        reconnectJob?.cancel()
+        serviceScope.cancel()
         unregister()
         reportExecutor.shutdown()
         HidLink.reset()
@@ -265,6 +281,8 @@ class HidService :
             when (state) {
                 BluetoothProfile.STATE_CONNECTED -> {
                     host = device
+                    lastHost = device
+                    reconnectJob?.cancel()
                     HidLink.update {
                         it.copy(
                             stage = LinkStage.CONNECTED,
@@ -283,6 +301,7 @@ class HidService :
                             hostAddress = null,
                         )
                     }
+                    scheduleReconnect()
                 }
 
                 else -> Unit
@@ -318,9 +337,38 @@ class HidService :
         override fun onVirtualCableUnplug(device: BluetoothDevice) {
             Log.w(TAG, "Callback.onVirtualCableUnplug(device=$device)")
             host = null
+            // An unplug is the host saying it is done with us. Retrying would be rude and futile.
+            lastHost = null
+            reconnectJob?.cancel()
             note("connection", "virtual cable unplugged")
             HidLink.update { it.copy(stage = LinkStage.REGISTERED, hostName = null, hostAddress = null) }
             updateNotification()
+        }
+    }
+
+    /**
+     * BUILD_SPEC §7: retry the last known host three times with backoff, then stop and wait for
+     * a manual connect.
+     *
+     * It stops after three because a projector that has been switched off will not answer, and a
+     * phone that retries for ever is a phone with a flat battery.
+     */
+    @SuppressLint("MissingPermission") // guarded by hasBluetoothPermission()
+    private fun scheduleReconnect() {
+        val target = lastHost ?: return
+        if (reconnectJob?.isActive == true) return
+        reconnectJob = serviceScope.launch {
+            repeat(RECONNECT_ATTEMPTS) { attempt ->
+                delay(RECONNECT_BACKOFF_MS shl attempt)
+                if (host != null) return@launch
+                val hid = proxy ?: return@launch
+                val requested = runCatching { hid.connect(target) }.getOrDefault(false)
+                Log.i(TAG, "reconnect attempt ${attempt + 1}/$RECONNECT_ATTEMPTS -> $requested")
+                note("reconnect", "attempt ${attempt + 1}/$RECONNECT_ATTEMPTS -> $requested")
+            }
+            if (host == null) {
+                note("reconnect", "gave up after $RECONNECT_ATTEMPTS attempts; connect manually")
+            }
         }
     }
 
@@ -346,17 +394,11 @@ class HidService :
         // Never queue a report for a dead link (BUILD_SPEC §5).
         val device = host ?: return SendResult.NOT_CONNECTED
 
-        val up = HidReports.releaseFor(report)
-        return try {
-            val accepted = hid.sendReport(device, report.id, report.data)
-            note(label, "down id=${report.id} [${report.hex()}] -> $accepted")
-            if (accepted) SendResult.SENT else SendResult.FAILED
-        } finally {
-            // The key-up is guaranteed (BUILD_SPEC §4). A key stuck down on the projector cannot
-            // be recovered from the phone, so it goes out even if the key-down threw.
-            val accepted = runCatching { hid.sendReport(device, up.id, up.data) }.getOrDefault(false)
-            note(label, "up   id=${up.id} [${up.hex()}] -> $accepted")
-        }
+        // The key-up guarantee of BUILD_SPEC §4 lives in KeyPressSender, where it is unit-tested.
+        val outcome = KeyPressSender { out -> hid.sendReport(device, out.id, out.data) }.press(report)
+        note(label, "down id=${report.id} [${report.hex()}] -> ${outcome.down}")
+        note(label, "up   [${HidReports.releaseFor(report).hex()}] -> ${outcome.up}")
+        return if (outcome.down) SendResult.SENT else SendResult.FAILED
     }
 
     @SuppressLint("MissingPermission") // guarded by hasBluetoothPermission()
@@ -391,6 +433,10 @@ class HidService :
         const val TAG = "A1HidService"
 
         private const val ACTION_STOP = "com.narmeshnigam.a1remote.action.STOP"
+
+        /** BUILD_SPEC §7: three retries, then wait for the user. */
+        private const val RECONNECT_ATTEMPTS = 3
+        private const val RECONNECT_BACKOFF_MS = 1_000L
 
         // BUILD_SPEC §4.
         private const val SDP_NAME = "WZATCO A1 Remote"

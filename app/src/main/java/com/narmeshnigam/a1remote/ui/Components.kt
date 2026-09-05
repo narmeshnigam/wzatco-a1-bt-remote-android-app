@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +40,8 @@ import com.narmeshnigam.a1remote.ui.theme.A1Colors
 import com.narmeshnigam.a1remote.ui.theme.A1Dimens
 import com.narmeshnigam.a1remote.ui.theme.A1Type
 import com.narmeshnigam.a1remote.ui.theme.dashedBorder
+import com.narmeshnigam.a1remote.vm.AutoRepeat
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -78,11 +81,22 @@ fun A1Key(
     iconSize: Dp = A1Dimens.KeyIcon,
     showLabel: Boolean = true,
     labelStyle: TextStyle = A1Type.KeyLabel,
+    repeating: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
+    val haptics = rememberHaptics()
     var held by remember { mutableStateOf(false) }
     var flashing by remember { mutableStateOf(false) }
+    val repeatJob = remember { mutableStateOf<Job?>(null) }
     val content = contentColor(style)
+
+    // A finger that leaves with the composable takes its auto-repeat with it.
+    DisposableEffect(Unit) {
+        onDispose {
+            repeatJob.value?.cancel()
+            repeatJob.value = null
+        }
+    }
 
     Box(
         modifier = modifier
@@ -94,22 +108,35 @@ fun A1Key(
                 enabled = enabled,
                 onDown = {
                     held = true
+                    haptics.tick()
                     onPress()
                     scope.launch {
                         flashing = true
                         delay(PRESS_FLASH_MS)
                         flashing = false
                     }
+                    if (repeating) {
+                        repeatJob.value = scope.launch { AutoRepeat.run(onPress) }
+                    }
                 },
-                onUp = { held = false },
+                onUp = {
+                    held = false
+                    repeatJob.value?.cancel()
+                    repeatJob.value = null
+                },
             )
             .semantics {
                 role = Role.Button
                 contentDescription = label
-                if (!enabled) disabled()
-                onClick(label = label) {
-                    onPress()
-                    true
+                if (enabled) {
+                    // The click action is registered only while the key is live, so an
+                    // accessibility click cannot transmit over a dead link either.
+                    onClick(label = label) {
+                        onPress()
+                        true
+                    }
+                } else {
+                    disabled()
                 }
             }
             .padding(horizontal = 6.dp, vertical = 6.dp),

@@ -12,6 +12,8 @@ Answer these from the hardware. Record the answer and the date. Do not design ar
 | 6 | What is the phone model and Android version used for the build? | Needed for the findings file and for reproducing any ROM-specific behaviour. | | |
 | 7 | Does the A1's own Bluetooth settings screen offer pairing with an input device at all, or only with audio devices? | The phone cannot initiate the HID connection until the projector has bonded with it. If the A1 only pairs speakers and headsets, Gate 1 cannot pass however well the phone registers. | | |
 | 8 | Does OxygenOS keep `HidService` alive with battery optimisation disabled, or does it stop the service anyway? | Decides whether the remote survives a screen-off, and whether Gate 3's reconnect logic is a convenience or the only thing that makes the app usable. | | |
+| 9 | Does the A1 act on the mouse collection at all — does a drag move a pointer on the projected image, and does a left click activate what is under it? | The cursor screen is the only way to reach anything the D-pad cannot focus. If the ROM ignores report 3, the screen is dead weight and its keys must be drawn unverified. | | |
+| 10 | At 1.6× acceleration, does one full-length drag across the phone cross the projected image? | Decides whether the acceleration factor of BUILD_SPEC §6 is usable or has to change. It depends on the A1's pointer resolution and its own pointer acceleration, neither of which is known. | | |
 
 **Until question 2 is answered, the app must not present a power-on affordance it cannot honour.**
 
@@ -22,3 +24,7 @@ With the phone paired and the projector awake: send Power, note what the project
 ## How to answer 1, 7 and 8
 
 Run `GATE1_RUNBOOK.md`. It records what to look for and where.
+
+## How to answer 9 and 10
+
+With the phone paired and the projector awake, open the Cursor tab and drag slowly from one edge of the surface to the other. Note whether a pointer appears on the projected image, how far it travelled, and whether it kept up with the thumb. Then tap once over a focusable item and see whether it activates, and put two fingers down and lift them to see whether the projector goes back. Until this is done, nothing in the app may claim the A1 accepts a mouse.
