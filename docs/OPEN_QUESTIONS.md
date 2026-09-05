@@ -14,6 +14,9 @@ Answer these from the hardware. Record the answer and the date. Do not design ar
 | 8 | Does OxygenOS keep `HidService` alive with battery optimisation disabled, or does it stop the service anyway? | Decides whether the remote survives a screen-off, and whether Gate 3's reconnect logic is a convenience or the only thing that makes the app usable. | | |
 | 9 | Does the A1 act on the mouse collection at all — does a drag move a pointer on the projected image, and does a left click activate what is under it? | The cursor screen is the only way to reach anything the D-pad cannot focus. If the ROM ignores report 3, the screen is dead weight and its keys must be drawn unverified. | | |
 | 10 | At 1.6× acceleration, does one full-length drag across the phone cross the projected image? | Decides whether the acceleration factor of BUILD_SPEC §6 is usable or has to change. It depends on the A1's pointer resolution and its own pointer acceleration, neither of which is known. | | |
+| 11 | Does the A1 act on every press in a 700 ms sweep, or does it coalesce or debounce presses at that rate? | Until this is known a silent sweep is not evidence of anything. If the projector drops presses at that cadence, "no effect" against sixteen swept usages means only that the sweep was too fast. Gate 4. | | |
+| 12 | Do keyboard usages `0x68`–`0x73` (F13–F24) reach the A1's applications at all? | Android's own key layouts decide this before any projector code sees the key. If the platform drops F13–F24, the screen-flip sweep tests the ROM's key layout rather than the projector, and a null result says nothing about the vendor keys. Gate 4. | | |
+| 13 | What, if anything, are consumer usages `0x0180`–`0x018F` on this host? | `KEY_LAB.md` names no usages for this range, so Key Lab names its sweep entries by code alone. If the sweep hits one, the findings file records the number and not a name — the name has to come from the host, not from the app. Gate 4. | | |
 
 **Until question 2 is answered, the app must not present a power-on affordance it cannot honour.**
 
@@ -28,3 +31,13 @@ Run `HARDWARE_RUNBOOK.md` §1. It records what to look for and where.
 ## How to answer 9 and 10
 
 With the phone paired and the projector awake, open the Cursor tab and drag slowly from one edge of the surface to the other. Note whether a pointer appears on the projected image, how far it travelled, and whether it kept up with the thumb. Then tap once over a focusable item and see whether it activates, and put two fingers down and lift them to see whether the projector goes back. Until this is done, nothing in the app may claim the A1 accepts a mouse.
+
+## How to answer 11 and 12 before trusting a sweep
+
+Both are about whether a silent sweep means anything, so answer them before running one for real.
+
+**11.** With the projector on a screen where the volume bar is visible, open Key Lab, switch to manual mode, choose `consumer`, and type `00E9` (Volume +). Press **Send** sixteen times at roughly the sweep's own pace — one press every 700 ms, counted out. If the volume rises sixteen steps, the projector acts on every press at that cadence and a silent sweep is real evidence. If it rises fewer, the sweep is too fast; record the number of steps that actually landed.
+
+**12.** With the projector on any screen that shows a text field, in Key Lab manual mode choose `keyboard` and send `04` (the letter A) to prove the keyboard collection reaches the host at all. Then send `3A` (F1) and `68` (F13) and watch for anything — a focus move, a toast, a beep. If A types and F13 does nothing, F13–F24 are being dropped somewhere above the wire, and the screen-flip sweep result is a fact about Android rather than about the A1.
+
+Record both answers here before filing a findings file that leans on them.

@@ -118,4 +118,12 @@ object A1Type {
         letterSpacing = 0.14.em,
         color = A1Colors.MutedLabel,
     )
+
+    /**
+     * The function under test on the Key Lab screen: condensed 22 sp.
+     *
+     * Not [OkGlyph], which is the same size but tracked out 0.1 em — that spacing is what makes
+     * a three-letter glyph read as a key, and it would make a function name read as a sign.
+     */
+    val LabTitle = TextStyle(fontFamily = Condensed, fontSize = 22.sp, color = A1Colors.Paper)
 }

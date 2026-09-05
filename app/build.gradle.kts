@@ -57,6 +57,10 @@ android {
 
     buildFeatures {
         compose = true
+
+        // Key Lab stamps the app version into its findings file. BuildConfig is the only way to
+        // read it without the deprecated PackageManager.getPackageInfo(String, Int) overload.
+        buildConfig = true
     }
 
     packaging {

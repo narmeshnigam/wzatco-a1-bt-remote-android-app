@@ -117,11 +117,7 @@ private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modif
                         onReturnToKeypad = { screen = A1Screen.KEYPAD },
                     )
 
-                    A1Screen.KEY_LAB -> PlaceholderScreen(
-                        title = "Key Lab",
-                        body = "Candidate discovery arrives at Gate 4. Until then Focus, Source, " +
-                            "Flip and Keystone stay unverified.",
-                    )
+                    A1Screen.KEY_LAB -> KeyLabScreen()
 
                     A1Screen.SETUP -> SetupScreen(
                         state = state,
