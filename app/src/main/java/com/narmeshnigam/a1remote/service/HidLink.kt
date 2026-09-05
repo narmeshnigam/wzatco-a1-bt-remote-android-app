@@ -27,7 +27,21 @@ interface HidTransport {
      * goes through [sendPress] and gets its guaranteed key-up.
      */
     fun sendMotion(report: HidReport, label: String): SendResult
+
+    /** The devices this phone is bonded with. Any of them might be the projector. */
+    fun bondedHosts(): List<BondedHost>
+
+    /**
+     * Asks the stack to open the HID connection to an already-bonded host.
+     *
+     * Needed because some hosts hide phones from their own Bluetooth scan list; bonding then
+     * has to happen from the phone's side, and the phone has to be the one that connects.
+     */
+    fun connectHost(address: String): Boolean
 }
+
+/** A bonded device as the Setup screen shows it. */
+data class BondedHost(val name: String, val address: String)
 
 /**
  * Process-wide view of the link.
@@ -59,6 +73,10 @@ object HidLink {
     /** Transmit one relative-motion report, which has no release. Cursor mode only. */
     fun sendMotion(report: HidReport, label: String): SendResult =
         transport?.sendMotion(report, label) ?: SendResult.NO_SERVICE
+
+    fun bondedHosts(): List<BondedHost> = transport?.bondedHosts() ?: emptyList()
+
+    fun connectHost(address: String): Boolean = transport?.connectHost(address) ?: false
 
     internal fun update(block: (LinkState) -> LinkState) = _state.update(block)
 

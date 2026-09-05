@@ -6,6 +6,7 @@ import com.narmeshnigam.a1remote.data.KeyMaps
 import com.narmeshnigam.a1remote.hid.KeyBinding
 import com.narmeshnigam.a1remote.hid.KeyStatus
 import com.narmeshnigam.a1remote.hid.RemoteFunction
+import com.narmeshnigam.a1remote.service.BondedHost
 import com.narmeshnigam.a1remote.service.HidLink
 import com.narmeshnigam.a1remote.service.HidService
 import com.narmeshnigam.a1remote.service.LinkState
@@ -31,6 +32,17 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _lastResult = MutableStateFlow<SendResult?>(null)
     val lastResult: StateFlow<SendResult?> = _lastResult.asStateFlow()
+
+    private val _bondedHosts = MutableStateFlow<List<BondedHost>>(emptyList())
+    val bondedHosts: StateFlow<List<BondedHost>> = _bondedHosts.asStateFlow()
+
+    /** Re-reads the bond list. Cheap, and pairing can happen behind the app's back. */
+    fun refreshBondedHosts() {
+        _bondedHosts.value = HidLink.bondedHosts()
+    }
+
+    /** Opens the HID connection to a host the phone is already bonded with. */
+    fun connectHost(address: String): Boolean = HidLink.connectHost(address)
 
     /** Transmit one function. Does nothing at all when the link is down (BUILD_SPEC §5). */
     fun press(function: RemoteFunction) {

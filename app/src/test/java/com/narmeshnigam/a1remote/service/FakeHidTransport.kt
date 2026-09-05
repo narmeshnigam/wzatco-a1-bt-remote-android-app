@@ -43,6 +43,16 @@ class FakeHidTransport(var connected: Boolean = true) : HidTransport {
         return SendResult.SENT
     }
 
+    var bonded: List<BondedHost> = emptyList()
+    val connectRequests = mutableListOf<String>()
+
+    override fun bondedHosts(): List<BondedHost> = bonded
+
+    override fun connectHost(address: String): Boolean {
+        connectRequests += address
+        return connected
+    }
+
     /** True when every report sent so far is followed by its matching release. */
     fun everyPressWasReleased(): Boolean = sent.filter { it.id != HidReports.mouseRelease().id || !it.isRelease }
         .chunked(2)

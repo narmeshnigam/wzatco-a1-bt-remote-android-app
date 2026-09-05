@@ -89,6 +89,7 @@ private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modif
     val state by viewModel.link.collectAsStateWithLifecycle()
     val wireLog by viewModel.wireLog.collectAsStateWithLifecycle()
     val bindings by viewModel.bindings.collectAsStateWithLifecycle()
+    val bondedHosts by viewModel.bondedHosts.collectAsStateWithLifecycle()
 
     var screen by rememberSaveable { mutableStateOf(A1Screen.KEYPAD) }
     var diagnosticsOpen by rememberSaveable { mutableStateOf(false) }
@@ -119,12 +120,19 @@ private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modif
 
                     A1Screen.KEY_LAB -> KeyLabScreen()
 
-                    A1Screen.SETUP -> SetupScreen(
-                        state = state,
-                        onConnect = viewModel::connect,
-                        onDisconnect = viewModel::disconnect,
-                        onMakeDiscoverable = { context.requestDiscoverable() },
-                    )
+                    A1Screen.SETUP -> {
+                        // Pairing can happen in the system settings while this screen is away.
+                        LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshBondedHosts() }
+                        LaunchedEffect(state.stage) { viewModel.refreshBondedHosts() }
+                        SetupScreen(
+                            state = state,
+                            bondedHosts = bondedHosts,
+                            onConnect = viewModel::connect,
+                            onDisconnect = viewModel::disconnect,
+                            onMakeDiscoverable = { context.requestDiscoverable() },
+                            onConnectHost = { viewModel.connectHost(it.address) },
+                        )
+                    }
                 }
             }
 

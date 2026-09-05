@@ -293,6 +293,7 @@ class HidService :
                 }
 
                 BluetoothProfile.STATE_DISCONNECTED -> {
+                    val wasConnected = host != null
                     host = null
                     HidLink.update {
                         it.copy(
@@ -301,7 +302,11 @@ class HidService :
                             hostAddress = null,
                         )
                     }
-                    scheduleReconnect()
+                    // Only an established link that dropped is worth chasing. A connect attempt
+                    // that never got through (page timeout) will not succeed by being repeated
+                    // a second later on top of itself — the stack reports that as
+                    // HID_ERR_CONN_IN_PROCESS and nothing moves.
+                    if (wasConnected) scheduleReconnect()
                 }
 
                 else -> Unit
@@ -409,6 +414,27 @@ class HidService :
         val accepted = runCatching { hid.sendReport(device, report.id, report.data) }.getOrDefault(false)
         if (!accepted) note(label, "motion id=${report.id} [${report.hex()}] -> false")
         return if (accepted) SendResult.SENT else SendResult.FAILED
+    }
+
+    @SuppressLint("MissingPermission") // guarded by hasBluetoothPermission()
+    override fun bondedHosts(): List<BondedHost> {
+        if (!hasBluetoothPermission()) return emptyList()
+        val bonded = adapter?.bondedDevices ?: return emptyList()
+        return bonded.map { device -> BondedHost(safeName(device) ?: device.address, device.address) }
+            .sortedBy { it.name }
+    }
+
+    @SuppressLint("MissingPermission") // guarded by hasBluetoothPermission()
+    override fun connectHost(address: String): Boolean {
+        if (!hasBluetoothPermission()) return false
+        val hid = proxy ?: return false
+        val device = runCatching { adapter?.getRemoteDevice(address) }.getOrNull() ?: return false
+        lastHost = device
+        reconnectJob?.cancel()
+        val requested = runCatching { hid.connect(device) }.getOrDefault(false)
+        Log.i(TAG, "BluetoothHidDevice.connect($address) returned $requested")
+        note("connect", "$address -> $requested")
+        return requested
     }
 
     // endregion

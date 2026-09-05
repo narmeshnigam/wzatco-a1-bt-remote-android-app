@@ -7,10 +7,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.narmeshnigam.a1remote.service.BondedHost
 import com.narmeshnigam.a1remote.service.LinkState
 import com.narmeshnigam.a1remote.ui.theme.A1Colors
 import com.narmeshnigam.a1remote.ui.theme.A1Dimens
@@ -24,9 +27,11 @@ import com.narmeshnigam.a1remote.ui.theme.A1Type
 @Composable
 fun SetupScreen(
     state: LinkState,
+    bondedHosts: List<BondedHost>,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onMakeDiscoverable: () -> Unit,
+    onConnectHost: (BondedHost) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -54,9 +59,31 @@ fun SetupScreen(
         )
 
         StepCard(
-            step = "Step 2 · Pair from the projector",
-            body = "Tap Make discoverable, then on the A1: Settings → Bluetooth → pick this phone.",
+            step = "Step 2 · Pair",
+            body = "Tap Make discoverable, then on the A1: Settings → Bluetooth → pick this phone. " +
+                "If the A1 never lists the phone, pair from the phone's own Bluetooth settings " +
+                "instead, then tap the A1 below.",
         )
+
+        if (bondedHosts.isNotEmpty()) {
+            BasicText(text = "PAIRED DEVICES · TAP TO CONNECT", style = A1Type.StepLabel)
+            // A phone with a dozen bonds must not push the primary action off the screen.
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(A1Dimens.Gutter),
+            ) {
+                bondedHosts.forEach { host ->
+                    A1Key(
+                        label = host.name,
+                        onPress = { onConnectHost(host) },
+                        enabled = state.isRegistered && state.hostAddress != host.address,
+                        modifier = Modifier.fillMaxWidth().height(A1Dimens.MinTouch),
+                    )
+                }
+            }
+        }
 
         StepCard(
             step = "Step 3 · Standby test",
