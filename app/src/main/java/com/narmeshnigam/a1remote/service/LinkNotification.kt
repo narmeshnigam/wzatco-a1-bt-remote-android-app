@@ -60,6 +60,7 @@ internal class LinkNotification(private val context: Context) {
         LinkStage.REGISTERING -> "Registering"
         LinkStage.REGISTRATION_REFUSED -> "Registration refused by the system"
         LinkStage.REGISTERED -> "Registered — waiting for the projector"
+        LinkStage.CONNECTING -> "Connecting"
         LinkStage.CONNECTED -> "Connected"
     }
 

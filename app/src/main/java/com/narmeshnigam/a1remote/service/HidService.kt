@@ -54,7 +54,13 @@ class HidService :
 
     private var adapter: BluetoothAdapter? = null
     private var proxy: BluetoothHidDevice? = null
+    private var appRegistered = false
+    private var registerRetryJob: Job? = null
     private var reconnectJob: Job? = null
+    private var connectTimeoutJob: Job? = null
+
+    @Volatile
+    private var connecting = false
 
     @Volatile
     private var host: BluetoothDevice? = null
@@ -141,13 +147,18 @@ class HidService :
         }
 
         val held = proxy
-        if (held != null) {
-            Log.i(TAG, "HID_DEVICE proxy already held; re-registering the app")
-            registerApp(held)
-            return
+        when (RegistrationPolicy.next(proxyHeld = held != null, appRegistered = appRegistered)) {
+            RegistrationPolicy.Next.ACQUIRE_PROXY -> acquireProxy(bluetoothAdapter)
+            RegistrationPolicy.Next.REGISTER -> registerApp(checkNotNull(held))
+            RegistrationPolicy.Next.ALREADY_REGISTERED -> {
+                Log.i(TAG, "HID_DEVICE proxy held and app already registered; not calling registerApp() again")
+                note("register", "already registered")
+                HidLink.update {
+                    it.copy(stage = if (host != null) LinkStage.CONNECTED else LinkStage.REGISTERED, message = null)
+                }
+                updateNotification()
+            }
         }
-
-        acquireProxy(bluetoothAdapter)
     }
 
     @SuppressLint("MissingPermission") // guarded by hasBluetoothPermission()
@@ -170,7 +181,7 @@ class HidService :
     }
 
     @SuppressLint("MissingPermission") // guarded by hasBluetoothPermission()
-    private fun registerApp(hid: BluetoothHidDevice) {
+    private fun registerApp(hid: BluetoothHidDevice, attempt: Int = 1) {
         val sdp = BluetoothHidDeviceAppSdpSettings(
             SDP_NAME,
             SDP_DESCRIPTION,
@@ -199,16 +210,51 @@ class HidService :
 
         Log.i(TAG, "BluetoothHidDevice.registerApp() returned $returned")
         note("registerApp", "returned $returned")
-        HidLink.update {
-            it.copy(
-                stage = if (returned) LinkStage.REGISTERING else LinkStage.REGISTRATION_REFUSED,
-                registerAppReturned = returned,
-                message = if (returned) {
-                    null
-                } else {
-                    "registerApp() returned false — this ROM will not host the HID Device profile"
-                },
-            )
+        HidLink.update { it.copy(registerAppReturned = returned) }
+        handleRegisterResult(hid, returned, attempt)
+    }
+
+    private fun handleRegisterResult(hid: BluetoothHidDevice, returned: Boolean, attempt: Int) {
+        when (RegistrationPolicy.afterReturn(returned, appRegistered, attempt)) {
+            RegistrationPolicy.AfterReturn.WAIT_FOR_CALLBACK -> HidLink.update { it.copy(message = null) }
+            RegistrationPolicy.AfterReturn.KEEP_REGISTERED -> {
+                Log.i(TAG, "registerApp() returned false but the app is registered; keeping the registration")
+                HidLink.update {
+                    it.copy(stage = if (host != null) LinkStage.CONNECTED else LinkStage.REGISTERED, message = null)
+                }
+            }
+            RegistrationPolicy.AfterReturn.RETRY_LATER -> {
+                // A prior instance of this app that was killed can leave its registration held in
+                // HidDeviceService (mUserUid still set), so registerApp() returns false with
+                // "application already registered". Clearing it needs an explicit unregisterApp()
+                // for our own uid, not just a wait — so deregister, then re-register.
+                Log.w(
+                    TAG,
+                    "registerApp() false on attempt $attempt; waiting for callback, else clearing in " +
+                        "${RegistrationPolicy.RETRY_DELAY_MS} ms",
+                )
+                HidLink.update { it.copy(message = "Waiting for the registration callback (attempt $attempt)") }
+                registerRetryJob?.cancel()
+                registerRetryJob = serviceScope.launch {
+                    // This ROM returns false from registerApp() even when the registration then
+                    // succeeds via onAppStatusChanged (open question 14). The callback is the
+                    // authoritative signal, so wait for it before assuming a stale registration is
+                    // blocking us — tearing down here would kill a registration that just landed.
+                    delay(RegistrationPolicy.RETRY_DELAY_MS)
+                    if (proxy !== hid || appRegistered) return@launch
+                    val cleared = runCatching { hid.unregisterApp() }.getOrDefault(false)
+                    Log.i(TAG, "BluetoothHidDevice.unregisterApp() returned $cleared while clearing stale state")
+                    delay(RegistrationPolicy.RETRY_DELAY_MS)
+                    if (proxy === hid && !appRegistered) registerApp(hid, attempt + 1)
+                }
+            }
+            RegistrationPolicy.AfterReturn.REFUSED -> HidLink.update {
+                it.copy(
+                    stage = LinkStage.REGISTRATION_REFUSED,
+                    message = "registerApp() returned false ${RegistrationPolicy.MAX_ATTEMPTS} times — " +
+                        "the stack refused the HID Device profile",
+                )
+            }
         }
         updateNotification()
     }
@@ -218,6 +264,8 @@ class HidService :
         val hid = proxy ?: return
         proxy = null
         host = null
+        appRegistered = false
+        registerRetryJob?.cancel()
         runCatching { hid.unregisterApp() }
             .onSuccess { Log.i(TAG, "BluetoothHidDevice.unregisterApp() returned $it") }
             .onFailure { Log.e(TAG, "unregisterApp() failed", it) }
@@ -261,6 +309,8 @@ class HidService :
         override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
             Log.i(TAG, "Callback.onAppStatusChanged(pluggedDevice=$pluggedDevice, registered=$registered)")
             note("onAppStatusChanged", "registered=$registered")
+            appRegistered = registered
+            if (registered) registerRetryJob?.cancel()
             HidLink.update {
                 it.copy(
                     stage = when {
@@ -282,6 +332,8 @@ class HidService :
                 BluetoothProfile.STATE_CONNECTED -> {
                     host = device
                     lastHost = device
+                    connecting = false
+                    connectTimeoutJob?.cancel()
                     reconnectJob?.cancel()
                     HidLink.update {
                         it.copy(
@@ -292,9 +344,22 @@ class HidService :
                     }
                 }
 
+                BluetoothProfile.STATE_CONNECTING -> {
+                    connecting = true
+                    HidLink.update {
+                        it.copy(
+                            stage = LinkStage.CONNECTING,
+                            hostName = safeName(device),
+                            hostAddress = device.address,
+                        )
+                    }
+                }
+
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     val wasConnected = host != null
                     host = null
+                    connecting = false
+                    connectTimeoutJob?.cancel()
                     HidLink.update {
                         it.copy(
                             stage = if (it.appStatusRegistered == true) LinkStage.REGISTERED else it.stage,
@@ -342,6 +407,8 @@ class HidService :
         override fun onVirtualCableUnplug(device: BluetoothDevice) {
             Log.w(TAG, "Callback.onVirtualCableUnplug(device=$device)")
             host = null
+            connecting = false
+            connectTimeoutJob?.cancel()
             // An unplug is the host saying it is done with us. Retrying would be rude and futile.
             lastHost = null
             reconnectJob?.cancel()
@@ -366,8 +433,8 @@ class HidService :
             repeat(RECONNECT_ATTEMPTS) { attempt ->
                 delay(RECONNECT_BACKOFF_MS shl attempt)
                 if (host != null) return@launch
-                val hid = proxy ?: return@launch
-                val requested = runCatching { hid.connect(target) }.getOrDefault(false)
+                if (connecting) return@repeat
+                val requested = requestConnect(target)
                 Log.i(TAG, "reconnect attempt ${attempt + 1}/$RECONNECT_ATTEMPTS -> $requested")
                 note("reconnect", "attempt ${attempt + 1}/$RECONNECT_ATTEMPTS -> $requested")
             }
@@ -427,14 +494,69 @@ class HidService :
     @SuppressLint("MissingPermission") // guarded by hasBluetoothPermission()
     override fun connectHost(address: String): Boolean {
         if (!hasBluetoothPermission()) return false
-        val hid = proxy ?: return false
         val device = runCatching { adapter?.getRemoteDevice(address) }.getOrNull() ?: return false
+        if (host?.address == address) {
+            Log.i(TAG, "connectHost($address) ignored; already connected")
+            return true
+        }
+        if (connecting) {
+            // Firing connect() again while one is in flight makes the stack return
+            // HID_ERR_CONN_IN_PROCESS and wedges the L2CAP config handshake. One at a time.
+            Log.i(TAG, "connectHost($address) ignored; a connection is already in progress")
+            note("connect", "$address ignored; already connecting")
+            return false
+        }
         lastHost = device
         reconnectJob?.cancel()
+        return requestConnect(device)
+    }
+
+    /** The single guarded entry point for [BluetoothHidDevice.connect]. */
+    @SuppressLint("MissingPermission") // guarded by hasBluetoothPermission() at every caller
+    private fun requestConnect(device: BluetoothDevice): Boolean {
+        val hid = proxy ?: return false
+        if (connecting || host?.address == device.address) return host?.address == device.address
+        connecting = true
+        HidLink.update {
+            it.copy(stage = LinkStage.CONNECTING, hostName = safeName(device), hostAddress = device.address)
+        }
+        updateNotification()
         val requested = runCatching { hid.connect(device) }.getOrDefault(false)
-        Log.i(TAG, "BluetoothHidDevice.connect($address) returned $requested")
-        note("connect", "$address -> $requested")
+        Log.i(TAG, "BluetoothHidDevice.connect(${device.address}) returned $requested")
+        note("connect", "${device.address} -> $requested")
+        if (requested) {
+            startConnectTimeout(device)
+        } else {
+            connecting = false
+            HidLink.update {
+                it.copy(
+                    stage = if (appRegistered) LinkStage.REGISTERED else it.stage,
+                    hostName = null,
+                    hostAddress = null,
+                )
+            }
+            updateNotification()
+        }
         return requested
+    }
+
+    private fun startConnectTimeout(device: BluetoothDevice) {
+        connectTimeoutJob?.cancel()
+        connectTimeoutJob = serviceScope.launch {
+            delay(CONNECT_TIMEOUT_MS)
+            if (!connecting || host != null) return@launch
+            Log.w(TAG, "connect to ${device.address} timed out after $CONNECT_TIMEOUT_MS ms; giving up")
+            note("connect", "${device.address} timed out")
+            connecting = false
+            HidLink.update {
+                it.copy(
+                    stage = if (appRegistered) LinkStage.REGISTERED else it.stage,
+                    hostName = null,
+                    hostAddress = null,
+                )
+            }
+            updateNotification()
+        }
     }
 
     // endregion
@@ -463,6 +585,7 @@ class HidService :
         /** BUILD_SPEC §7: three retries, then wait for the user. */
         private const val RECONNECT_ATTEMPTS = 3
         private const val RECONNECT_BACKOFF_MS = 1_000L
+        private const val CONNECT_TIMEOUT_MS = 12_000L
 
         // BUILD_SPEC §4.
         private const val SDP_NAME = "WZATCO A1 Remote"

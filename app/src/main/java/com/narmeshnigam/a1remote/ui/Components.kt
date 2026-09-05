@@ -3,6 +3,7 @@ package com.narmeshnigam.a1remote.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
@@ -82,6 +84,7 @@ fun A1Key(
     showLabel: Boolean = true,
     labelStyle: TextStyle = A1Type.KeyLabel,
     repeating: Boolean = false,
+    tapToClick: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
@@ -104,25 +107,52 @@ fun A1Key(
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .background(backgroundColor(style, pressed = held || flashing), RectangleShape)
             .keyBorder(style)
-            .pressGesture(
-                enabled = enabled,
-                onDown = {
-                    held = true
-                    haptics.tick()
-                    onPress()
-                    scope.launch {
-                        flashing = true
-                        delay(PRESS_FLASH_MS)
-                        flashing = false
+            .then(
+                if (tapToClick) {
+                    // A row inside a scrollable list: only a real tap (down and up with no scroll
+                    // in between) fires. detectTapGestures yields the drag to the scroll parent,
+                    // so touching a row to scroll never connects to it.
+                    Modifier.pointerInput(enabled) {
+                        if (!enabled) return@pointerInput
+                        detectTapGestures(
+                            onPress = { offset ->
+                                held = true
+                                val released = tryAwaitRelease()
+                                held = false
+                                if (released) {
+                                    haptics.tick()
+                                    scope.launch {
+                                        flashing = true
+                                        delay(PRESS_FLASH_MS)
+                                        flashing = false
+                                    }
+                                }
+                            },
+                            onTap = { onPress() },
+                        )
                     }
-                    if (repeating) {
-                        repeatJob.value = scope.launch { AutoRepeat.run(onPress) }
-                    }
-                },
-                onUp = {
-                    held = false
-                    repeatJob.value?.cancel()
-                    repeatJob.value = null
+                } else {
+                    Modifier.pressGesture(
+                        enabled = enabled,
+                        onDown = {
+                            held = true
+                            haptics.tick()
+                            onPress()
+                            scope.launch {
+                                flashing = true
+                                delay(PRESS_FLASH_MS)
+                                flashing = false
+                            }
+                            if (repeating) {
+                                repeatJob.value = scope.launch { AutoRepeat.run(onPress) }
+                            }
+                        },
+                        onUp = {
+                            held = false
+                            repeatJob.value?.cancel()
+                            repeatJob.value = null
+                        },
+                    )
                 },
             )
             .semantics {

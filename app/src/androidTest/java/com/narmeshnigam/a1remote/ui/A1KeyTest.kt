@@ -39,6 +39,31 @@ class A1KeyTest {
         }
     }
 
+    private fun setTapKey() {
+        presses = 0
+        compose.setContent {
+            A1Key(
+                label = "Host",
+                onPress = { presses++ },
+                tapToClick = true,
+                modifier = Modifier.size(80.dp),
+            )
+        }
+    }
+
+    @Test
+    fun aTapToClickKeyDoesNotFireOnTouchDownAlone() {
+        setTapKey()
+
+        compose.onNodeWithContentDescription("Host").performTouchInput { down(center) }
+        compose.waitForIdle()
+        assertEquals("a touch-down that may become a scroll must not connect", 0, presses)
+
+        compose.onNodeWithContentDescription("Host").performTouchInput { up() }
+        compose.waitForIdle()
+        assertEquals("the click lands only when the finger lifts on the row", 1, presses)
+    }
+
     @Test
     fun aPressFiresOnKeyDownRatherThanOnRelease() {
         setKey(repeating = false)

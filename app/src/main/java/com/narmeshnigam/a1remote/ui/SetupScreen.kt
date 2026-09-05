@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
@@ -70,7 +71,7 @@ fun SetupScreen(
             // A phone with a dozen bonds must not push the primary action off the screen.
             Column(
                 modifier = Modifier
-                    .weight(1f, fill = false)
+                    .heightIn(max = A1Dimens.MinTouch * VISIBLE_HOSTS + A1Dimens.Gutter * (VISIBLE_HOSTS - 1))
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(A1Dimens.Gutter),
             ) {
@@ -80,6 +81,7 @@ fun SetupScreen(
                         onPress = { onConnectHost(host) },
                         enabled = state.isRegistered && state.hostAddress != host.address,
                         modifier = Modifier.fillMaxWidth().height(A1Dimens.MinTouch),
+                        tapToClick = true,
                     )
                 }
             }
@@ -126,3 +128,6 @@ private fun StepCard(step: String, body: String, dashed: Boolean = false, bodyCo
         }
     }
 }
+
+/** Rows of the paired-device list visible before it scrolls; keeps the primary action on screen. */
+private const val VISIBLE_HOSTS = 3

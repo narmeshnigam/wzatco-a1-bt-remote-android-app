@@ -110,6 +110,7 @@ private fun stageLabel(stage: LinkStage): String = when (stage) {
     LinkStage.REGISTERING -> "Registering"
     LinkStage.REGISTRATION_REFUSED -> "Registration refused"
     LinkStage.REGISTERED -> "Registered, no host"
+    LinkStage.CONNECTING -> "Connecting"
     LinkStage.CONNECTED -> "Connected"
 }
 

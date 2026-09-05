@@ -32,6 +32,9 @@ enum class LinkStage {
     /** Registered as a HID device. No host has connected yet. */
     REGISTERED,
 
+    /** A connection to a host has been requested and is being set up. */
+    CONNECTING,
+
     /** A host is connected and reports will reach it. */
     CONNECTED,
 }
@@ -57,7 +60,10 @@ data class LinkState(
 ) {
     val isConnected: Boolean get() = stage == LinkStage.CONNECTED
 
-    val isRegistered: Boolean get() = stage == LinkStage.REGISTERED || stage == LinkStage.CONNECTED
+    val isConnecting: Boolean get() = stage == LinkStage.CONNECTING
+
+    val isRegistered: Boolean get() =
+        stage == LinkStage.REGISTERED || stage == LinkStage.CONNECTING || stage == LinkStage.CONNECTED
 }
 
 /** The outcome of one attempt to transmit a function. */

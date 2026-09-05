@@ -170,5 +170,6 @@ private fun linkLabel(state: LinkState): String = when (state.stage) {
     LinkStage.REGISTERING -> "HID · registering"
     LinkStage.REGISTRATION_REFUSED -> "HID · registration refused"
     LinkStage.REGISTERED -> "HID · registered, no host"
+    LinkStage.CONNECTING -> "HID · connecting…"
     LinkStage.CONNECTED -> "HID · connected"
 }
