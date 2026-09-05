@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-4f871880-b964-4a2b-8446-24169bfcad5f/styles.css">
+<script src="./doc-page.js"></script>
+<style>
+  doc-page:not(:defined) { visibility: hidden; }
+  body { margin: 0; }
+  a { color: var(--color-accent-700); text-decoration: none; border-bottom: 1px solid var(--color-accent-300); }
+  a:hover { color: var(--color-accent-900); border-bottom-color: var(--color-accent-700); }
+</style>
+</helmet>
+<doc-page margin="0.8in">
+
+  <div slot="footer" style="display: flex; justify-content: space-between; font-family: var(--font-body); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-600); border-top: 1px solid var(--color-divider); padding-top: 6px;">
+    <span>WZATCO A1 Remote — Build Spec v1.0</span>
+    <span>Android · Bluetooth HID</span>
+  </div>
+
+  <div style="font-family: var(--font-body); color: var(--color-text); font-size: 14px; line-height: 1.6;">
+
+    <div style="border-bottom: 2px solid var(--color-accent-900); padding-bottom: 14px; margin-bottom: 27px;">
+      <div style="font-family: var(--font-heading); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--color-accent-700);">Implementation specification · for an autonomous coding agent</div>
+      <h1 style="font-size: 42px; margin: 6px 0 4px;">WZATCO A1 Remote</h1>
+      <div style="font-family: var(--font-heading); font-size: 20px; color: var(--color-neutral-700);">Android app that replaces the projector's lost Bluetooth remote</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 27px; margin-top: 17px; font-size: 12px; color: var(--color-neutral-700);">
+        <div><div style="font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-600);">Version</div>1.0 · 06 Sep 2026</div>
+        <div><div style="font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-600);">Repository</div>narmeshnigam/wzatco-a1-bt-remote-android-app</div>
+        <div><div style="font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-600);">Target device</div>WZATCO Alpha A1 · Android 9 · HiSilicon 352</div>
+        <div><div style="font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-600);">Basis</div>Technical Blueprint, 05 Sep 2026</div>
+      </div>
+    </div>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">1 · Mission</h2>
+    <p>Build a Kotlin Android application named <strong style="font-weight: 700;">WZATCO A1 Remote</strong> that turns the phone into a Bluetooth HID device and drives a WZATCO Alpha A1 projector with no software installed on the projector. Twelve functions must reach one screen: D-pad with OK, Back, Home, Menu, Volume up/down, Mute, Power, Focus +/−, Source, Screen flip, Keystone, plus a cursor mode. Eight of those map to standard HID usages and can be finished without the projector. Five are projector-specific and unknown; the app ships a discovery tool ("Key Lab") that resolves them against the real hardware and writes the result back into its own key map.</p>
+
+    <div class="blueprint" style="padding: 14px 17px; margin: 20px 0 27px; break-inside: avoid;">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div style="font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-accent-700); margin-bottom: 4px;">Definition of done</div>
+      <p style="margin: 0;">The app installs on the phone, registers as a Bluetooth HID device, pairs with the A1 from the projector's own Bluetooth settings, and drives navigation, OK, Back, Home, Menu, volume and mute reliably from a cold start. Key Lab produces a JSON findings file for every unresolved function. Unit and instrumented test suites pass, <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">./gradlew build</code> is clean, and the manual test matrix in §10 is filled in.</p>
+    </div>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">2 · Stack and constraints</h2>
+    <ul style="margin: 0 0 20px; padding-left: 19px; display: grid; gap: 5px;">
+      <li>Kotlin, Jetpack Compose, single-module <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">:app</code> to start; extract <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">:hid</code> only if it earns its own tests.</li>
+      <li><strong style="font-weight: 700;">minSdk 28</strong> — <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">BluetoothHidDevice</code> arrived in Android 9 (API 28) and is the whole basis of the design. targetSdk 35.</li>
+      <li>No third-party Bluetooth libraries. Platform APIs only, so nothing hides a failure mode.</li>
+      <li>Persistence: DataStore (Proto or Preferences) for the key map and Key Lab findings. No database.</li>
+      <li>No projector-side APK and no HomeMate IR dependency in v1. Both stay as documented fallbacks (§11).</li>
+      <li>Offline. No network permission at all — the app must build and run with the internet permission absent.</li>
+    </ul>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">3 · Architecture</h2>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+      <thead>
+        <tr style="border-bottom: 1px solid var(--color-accent-900);">
+          <th style="text-align: left; padding: 7px 10px 7px 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .1em; text-transform: uppercase;">Component</th>
+          <th style="text-align: left; padding: 7px 10px 7px 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .1em; text-transform: uppercase;">Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 7px 10px 7px 0; vertical-align: top; font-weight: 700;">HidService</td><td style="padding: 7px 10px 7px 0;">Foreground service. Owns the <code style="font-family: ui-monospace, Menlo, monospace; font-size: 12px;">BluetoothHidDevice</code> proxy, registration, the app's single host connection, and report transmission. Survives screen-off; stops on explicit disconnect.</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 7px 10px 7px 0; vertical-align: top; font-weight: 700;">HidDescriptor</td><td style="padding: 7px 10px 7px 0;">The report descriptor byte array and the report builders (§4). Pure Kotlin, fully unit-testable, no Android imports.</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 7px 10px 7px 0; vertical-align: top; font-weight: 700;">KeyMap</td><td style="padding: 7px 10px 7px 0;">Maps a <code style="font-family: ui-monospace, Menlo, monospace; font-size: 12px;">RemoteFunction</code> enum to a report. Ships with the defaults in §5, is overridden by Key Lab findings, and is reloadable at runtime without a restart.</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 7px 10px 7px 0; vertical-align: top; font-weight: 700;">RemoteViewModel</td><td style="padding: 7px 10px 7px 0;">Connection state, press handling, auto-repeat, haptics, the wire log. One state flow per screen.</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 7px 10px 7px 0; vertical-align: top; font-weight: 700;">KeyLab</td><td style="padding: 7px 10px 7px 0;">Candidate lists per unresolved function, send/verdict loop, JSON export, promotion of a confirmed candidate into KeyMap (§8).</td></tr>
+        <tr><td style="padding: 7px 10px 7px 0; vertical-align: top; font-weight: 700;">UI</td><td style="padding: 7px 10px 7px 0;">Four Compose screens: Keypad, Cursor, Key Lab, Setup (§7). No Material theming — the visual spec is explicit.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">4 · HID report descriptor</h2>
+    <p>One descriptor with three top-level collections and distinct report IDs, so a keyboard press, a consumer-control press and a cursor move never collide:</p>
+    <ul style="margin: 0 0 14px; padding-left: 19px; display: grid; gap: 5px;">
+      <li><strong style="font-weight: 700;">Report 1 — Keyboard</strong> (Generic Desktop / Keyboard): 1 modifier byte + 1 reserved + 6 key slots. Carries arrows, Enter, Escape, Application, and the F-key candidates.</li>
+      <li><strong style="font-weight: 700;">Report 2 — Consumer Control</strong>: one 16-bit usage field. Carries volume, mute, power, AC_Back, AC_Home and the zoom candidates.</li>
+      <li><strong style="font-weight: 700;">Report 3 — Mouse</strong>: 3 buttons + relative X/Y (8-bit signed) + wheel. Cursor mode only.</li>
+    </ul>
+    <p>Register with <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">BluetoothHidDeviceAppSdpSettings</code>: name "WZATCO A1 Remote", description "Projector remote", provider "narmeshnigam", subclass <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">SUBCLASS1_COMBO</code>. Every key press is two reports — a key-down and a matching all-zero key-up — and the up report is guaranteed even if the finger leaves the button or the composable leaves the tree.</p>
+    <div class="blueprint" style="padding: 14px 17px; margin: 0 0 27px; break-inside: avoid;">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div style="font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-accent-700); margin-bottom: 4px;">Gate 1 — do this before any UI work</div>
+      <p style="margin: 0;">Prove on the actual phone that <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">BluetoothHidDevice.registerApp()</code> returns true and a paired host receives an arrow-key report. Some OEM ROMs restrict the HID Device profile; if the phone fails this gate, no amount of app code fixes it and the phone must change. Report the outcome before continuing.</p>
+    </div>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">5 · Key map</h2>
+    <p><strong style="font-weight: 700;">Confirmed</strong> rows are standard usages an Android 9 host is expected to honour — implement them as written. <strong style="font-weight: 700;">Candidate</strong> rows are guesses; ship them as the first entry of that function's Key Lab list, and render the button in the unverified style until hardware confirms it.</p>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12.5px;">
+      <thead>
+        <tr style="border-bottom: 1px solid var(--color-accent-900);">
+          <th style="text-align: left; padding: 7px 10px 7px 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .1em; text-transform: uppercase;">Function</th>
+          <th style="text-align: left; padding: 7px 10px 7px 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .1em; text-transform: uppercase;">Report</th>
+          <th style="text-align: left; padding: 7px 10px 7px 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .1em; text-transform: uppercase;">Usage</th>
+          <th style="text-align: left; padding: 7px 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .1em; text-transform: uppercase;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 6px 10px 6px 0;">Up / Down / Left / Right</td><td style="padding: 6px 10px 6px 0;">Keyboard</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">0x52 / 0x51 / 0x50 / 0x4F</td><td style="padding: 6px 0;">Confirmed</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 6px 10px 6px 0;">OK</td><td style="padding: 6px 10px 6px 0;">Keyboard</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">0x28 Enter</td><td style="padding: 6px 0;">Confirmed</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 6px 10px 6px 0;">Back</td><td style="padding: 6px 10px 6px 0;">Consumer</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">0x0224 AC_Back <span style="color: var(--color-neutral-600);">(alt: Keyboard 0x29 Esc)</span></td><td style="padding: 6px 0;">Confirmed</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 6px 10px 6px 0;">Home</td><td style="padding: 6px 10px 6px 0;">Consumer</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">0x0223 AC_Home</td><td style="padding: 6px 0;">Confirmed</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 6px 10px 6px 0;">Menu</td><td style="padding: 6px 10px 6px 0;">Keyboard</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">0x65 Application</td><td style="padding: 6px 0;">Confirmed</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 6px 10px 6px 0;">Volume + / −</td><td style="padding: 6px 10px 6px 0;">Consumer</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">0x00E9 / 0x00EA</td><td style="padding: 6px 0;">Confirmed</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 6px 10px 6px 0;">Mute</td><td style="padding: 6px 10px 6px 0;">Consumer</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">0x00E2</td><td style="padding: 6px 0;">Confirmed</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 6px 10px 6px 0;">Cursor move / click</td><td style="padding: 6px 10px 6px 0;">Mouse</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">relative X/Y, button 1</td><td style="padding: 6px 0;">Confirmed</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider); background: var(--color-accent-100);"><td style="padding: 6px 10px 6px 0;">Power off</td><td style="padding: 6px 10px 6px 0;">Consumer</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">0x0030 Power</td><td style="padding: 6px 0;">Candidate</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider); background: var(--color-accent-100);"><td style="padding: 6px 10px 6px 0;">Focus +</td><td style="padding: 6px 10px 6px 0;">Consumer</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">0x022D Zoom In</td><td style="padding: 6px 0;">Candidate</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider); background: var(--color-accent-100);"><td style="padding: 6px 10px 6px 0;">Focus −</td><td style="padding: 6px 10px 6px 0;">Consumer</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">0x022E Zoom Out</td><td style="padding: 6px 0;">Candidate</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider); background: var(--color-accent-100);"><td style="padding: 6px 10px 6px 0;">Source</td><td style="padding: 6px 10px 6px 0;">Consumer</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">0x0089 Media Select TV</td><td style="padding: 6px 0;">Candidate</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider); background: var(--color-accent-100);"><td style="padding: 6px 10px 6px 0;">Screen flip</td><td style="padding: 6px 10px 6px 0;">unknown</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">to be discovered</td><td style="padding: 6px 0;">Unmapped</td></tr>
+        <tr style="background: var(--color-accent-100);"><td style="padding: 6px 10px 6px 0;">Keystone</td><td style="padding: 6px 10px 6px 0;">unknown</td><td style="padding: 6px 10px 6px 0; font-family: ui-monospace, Menlo, monospace;">to be discovered</td><td style="padding: 6px 0;">Unmapped</td></tr>
+      </tbody>
+    </table>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">6 · Interaction rules</h2>
+    <p>The remote is used in a dark room, one-handed, without looking at the phone. These are requirements, not preferences.</p>
+    <ul style="margin: 0 0 20px; padding-left: 19px; display: grid; gap: 5px;">
+      <li>Minimum touch target 58 × 58 dp; 6 dp gutters. No key smaller than any other in its row.</li>
+      <li>Fixed geometry. The keypad never scrolls and rows never reflow — position is the only cue a thumb has.</li>
+      <li>Press feedback: the cell fills with the accent for 90 ms and a 12 ms haptic tick fires on key-down, not key-up.</li>
+      <li>Auto-repeat on Up/Down/Left/Right, Volume and Focus: 400 ms delay, then every 90 ms while held.</li>
+      <li>Power requires a 600 ms long-press and a confirming double haptic — it must not be reachable by accident.</li>
+      <li>Screen stays awake while the remote screen is foreground; the app claims no lock-screen presence in v1.</li>
+      <li>If the host disconnects, keys grey out immediately and the status line says so. Never queue reports for a dead link.</li>
+    </ul>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">7 · Screens</h2>
+    <p>Layout, hierarchy and states follow the companion prototype (<em>WZATCO A1 Remote — Prototype</em>): dark steel field, square-cornered hairline keys, accent fill on the single primary action per screen, dashed outline for any function not yet confirmed on the hardware.</p>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+      <thead>
+        <tr style="border-bottom: 1px solid var(--color-accent-900);">
+          <th style="text-align: left; padding: 7px 10px 7px 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .1em; text-transform: uppercase;">Screen</th>
+          <th style="text-align: left; padding: 7px 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .1em; text-transform: uppercase;">Contents</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 7px 10px 7px 0; vertical-align: top; font-weight: 700;">Keypad</td><td style="padding: 7px 0;">Status line with host name and link state, power key top-right; 3 × 3 D-pad block with OK filled; then four rows of three — Back / Home / Menu, Vol − / Mute / Vol +, Focus − / Focus + / Source, Flip / Keystone / Cursor.</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 7px 10px 7px 0; vertical-align: top; font-weight: 700;">Cursor</td><td style="padding: 7px 0;">Full-height drag surface sending relative mouse deltas with 1.6× acceleration; tap = left click; two-finger tap = Back; explicit return-to-keypad key.</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 7px 10px 7px 0; vertical-align: top; font-weight: 700;">Key Lab</td><td style="padding: 7px 0;">Function under test, current candidate and its index, running verdict list, and three actions: Send (primary), It worked, No effect. Export findings as JSON from the overflow.</td></tr>
+        <tr><td style="padding: 7px 10px 7px 0; vertical-align: top; font-weight: 700;">Setup</td><td style="padding: 7px 0;">Three numbered steps — register the HID profile, pair from the projector's Bluetooth settings, run the standby test — plus the connect/disconnect primary action.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">8 · Key Lab protocol</h2>
+    <p>Key Lab exists because the A1's projector-specific keys cannot be guessed from a desk. For each unresolved function it walks a candidate list, one report at a time, and records what the projector did.</p>
+    <ol style="margin: 0 0 14px; padding-left: 19px; display: grid; gap: 5px;">
+      <li>Pick the function. Show candidate <em>n</em> of <em>m</em> with its exact usage.</li>
+      <li><strong style="font-weight: 700;">Send</strong> transmits one key-down/key-up pair and nothing else, so the projector's reaction is unambiguous.</li>
+      <li>The operator marks <strong style="font-weight: 700;">It worked</strong> or <strong style="font-weight: 700;">No effect</strong>. A hit promotes that candidate into KeyMap immediately and advances to the next function; a miss advances to the next candidate.</li>
+      <li>Findings persist across restarts and export as JSON: function, usage, verdict, timestamp, app version.</li>
+    </ol>
+    <p>Ship these candidate lists: <strong style="font-weight: 700;">Focus +</strong> — Zoom In 0x022D, F5 0x3E, AC_Forward 0x0225, Keypad + 0x57. <strong style="font-weight: 700;">Focus −</strong> — Zoom Out 0x022E, F6 0x3F, Keypad − 0x56. <strong style="font-weight: 700;">Source</strong> — Media Select TV 0x0089, F4 0x3D, Channel + 0x009D. <strong style="font-weight: 700;">Screen flip</strong> — F3 0x3B, F1 0x3A, then a swept range. <strong style="font-weight: 700;">Keystone</strong> — F2 0x3B, F7 0x40, then a swept range. Include a manual mode where the operator types any usage code by hand, and a sweep mode that walks a range with a 700 ms gap and a visible index so the operator can call out where the projector reacted.</p>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">9 · Permissions and lifecycle</h2>
+    <ul style="margin: 0 0 20px; padding-left: 19px; display: grid; gap: 5px;">
+      <li><code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">BLUETOOTH_CONNECT</code> and <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">BLUETOOTH_ADVERTISE</code> (API 31+), legacy <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">BLUETOOTH</code>/<code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">BLUETOOTH_ADMIN</code> for 28–30, <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">FOREGROUND_SERVICE</code> + <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">FOREGROUND_SERVICE_CONNECTED_DEVICE</code>, <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">VIBRATE</code>. No location permission and no <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">INTERNET</code>.</li>
+      <li>Ask for permissions from a rationale screen, never on cold launch. A denial must leave the app usable and honest about what is blocked.</li>
+      <li>Unregister the HID app and release the proxy in <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">onDestroy</code>; re-register idempotently on next start. Never leak a registration across process death.</li>
+      <li>Reconnect: on host disconnect, retry the last known host three times with backoff, then wait for a manual connect.</li>
+    </ul>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">10 · Tests</h2>
+    <ul style="margin: 0 0 14px; padding-left: 19px; display: grid; gap: 5px;">
+      <li><strong style="font-weight: 700;">Unit</strong> — descriptor bytes match the spec; every function produces the exact expected report pair; key-up always follows key-down; auto-repeat timing; KeyMap override and reload; Key Lab promotion logic; JSON export round-trip.</li>
+      <li><strong style="font-weight: 700;">Instrumented</strong> — service registers and unregisters cleanly across rotation and process death; permission flows; every key reachable and 58 dp or larger; no report sent while disconnected.</li>
+      <li><strong style="font-weight: 700;">Fake host</strong> — a test double for <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">BluetoothHidDevice</code> that captures reports, so the whole app is testable without the projector.</li>
+      <li><strong style="font-weight: 700;">Manual matrix on the A1</strong> — for each of the twelve functions record: reaction, latency, repeat behaviour, behaviour after 10 minutes idle, behaviour after projector standby. This is the document that closes the project.</li>
+    </ul>
+    <p>Verification per change: <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">./gradlew ktlintCheck detekt test connectedAndroidTest assembleDebug</code>. Keep the build warning-free; treat a new warning as a failure.</p>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">11 · Fallbacks — not in v1</h2>
+    <p>If a function survives Key Lab unmapped, it is vendor-internal, and only then do these open up: a projector-side companion APK driving the vendor service or Android UI automation, or the existing HomeMate IR blaster for that one function. Do not build either speculatively, and do not make HomeMate a dependency of the app. Record the unmapped function in the findings file and stop.</p>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">12 · Milestones</h2>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+      <thead>
+        <tr style="border-bottom: 1px solid var(--color-accent-900);">
+          <th style="text-align: left; padding: 7px 10px 7px 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; width: 18%;">Gate</th>
+          <th style="text-align: left; padding: 7px 10px 7px 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .1em; text-transform: uppercase;">Deliverable</th>
+          <th style="text-align: left; padding: 7px 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; width: 26%;">Passes when</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 7px 10px 7px 0; font-weight: 700;">G1</td><td style="padding: 7px 10px 7px 0;">Project skeleton, HidService, descriptor, one hard-coded arrow key.</td><td style="padding: 7px 0;">The projector's focus moves.</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 7px 10px 7px 0; font-weight: 700;">G2</td><td style="padding: 7px 10px 7px 0;">All eight confirmed functions, Keypad screen, Setup screen.</td><td style="padding: 7px 0;">Navigation and volume are usable with no mouse.</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 7px 10px 7px 0; font-weight: 700;">G3</td><td style="padding: 7px 10px 7px 0;">Cursor mode, auto-repeat, haptics, disconnect handling.</td><td style="padding: 7px 0;">Instrumented suite green on device.</td></tr>
+        <tr style="border-bottom: 1px solid var(--color-divider);"><td style="padding: 7px 10px 7px 0; font-weight: 700;">G4</td><td style="padding: 7px 10px 7px 0;">Key Lab, findings export, KeyMap promotion.</td><td style="padding: 7px 0;">A findings JSON exists for all five unknowns.</td></tr>
+        <tr><td style="padding: 7px 10px 7px 0; font-weight: 700;">G5</td><td style="padding: 7px 10px 7px 0;">Manual matrix filled, release build signed.</td><td style="padding: 7px 0;">The remote replaces the lost one in daily use.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 style="font-size: 32px; margin: 0 0 10px;">13 · Open questions</h2>
+    <p>Answer these from the hardware and record the answers in the repository; do not design around a guess. Does the phone's ROM permit HID Device registration? Does the A1 keep its Bluetooth host alive in standby — i.e. can Bluetooth power the projector <em>on</em>, or is that IR-only? Does Consumer Power 0x0030 turn it off, or only sleep the Android layer? Are Focus, Source, Flip and Keystone reachable as input events at all, or handled by a vendor service above the input stack? Until the standby answer is known, the app must never present a power-on affordance it cannot honour.</p>
+
+  </div>
+</doc-page>
+</x-dc>
+</body>
+</html>
