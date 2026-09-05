@@ -21,6 +21,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.narmeshnigam.a1remote.data.KeyMaps
 import com.narmeshnigam.a1remote.hid.HidDescriptor
+import com.narmeshnigam.a1remote.hid.HidReport
 import com.narmeshnigam.a1remote.hid.HidReports
 import com.narmeshnigam.a1remote.hid.RemoteFunction
 import java.util.concurrent.Executors
@@ -335,22 +336,37 @@ class HidService :
             note(function.name, "no mapping — nothing sent")
             return SendResult.UNMAPPED
         }
+        return sendPress(down, "${function.name} ${binding.usageName}")
+    }
+
+    @SuppressLint("MissingPermission") // guarded by hasBluetoothPermission()
+    override fun sendPress(report: HidReport, label: String): SendResult {
         if (!hasBluetoothPermission()) return SendResult.PERMISSION_DENIED
         val hid = proxy ?: return SendResult.NO_SERVICE
         // Never queue a report for a dead link (BUILD_SPEC §5).
         val device = host ?: return SendResult.NOT_CONNECTED
 
-        val up = HidReports.releaseFor(down)
+        val up = HidReports.releaseFor(report)
         return try {
-            val accepted = hid.sendReport(device, down.id, down.data)
-            note(function.name, "${binding.usageName} id=${down.id} [${down.hex()}] -> $accepted")
+            val accepted = hid.sendReport(device, report.id, report.data)
+            note(label, "down id=${report.id} [${report.hex()}] -> $accepted")
             if (accepted) SendResult.SENT else SendResult.FAILED
         } finally {
             // The key-up is guaranteed (BUILD_SPEC §4). A key stuck down on the projector cannot
             // be recovered from the phone, so it goes out even if the key-down threw.
             val accepted = runCatching { hid.sendReport(device, up.id, up.data) }.getOrDefault(false)
-            note(function.name, "up   id=${up.id} [${up.hex()}] -> $accepted")
+            note(label, "up   id=${up.id} [${up.hex()}] -> $accepted")
         }
+    }
+
+    @SuppressLint("MissingPermission") // guarded by hasBluetoothPermission()
+    override fun sendMotion(report: HidReport, label: String): SendResult {
+        if (!hasBluetoothPermission()) return SendResult.PERMISSION_DENIED
+        val hid = proxy ?: return SendResult.NO_SERVICE
+        val device = host ?: return SendResult.NOT_CONNECTED
+        val accepted = runCatching { hid.sendReport(device, report.id, report.data) }.getOrDefault(false)
+        if (!accepted) note(label, "motion id=${report.id} [${report.hex()}] -> false")
+        return if (accepted) SendResult.SENT else SendResult.FAILED
     }
 
     // endregion

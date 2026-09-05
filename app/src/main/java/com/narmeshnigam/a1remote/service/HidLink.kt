@@ -1,5 +1,6 @@
 package com.narmeshnigam.a1remote.service
 
+import com.narmeshnigam.a1remote.hid.HidReport
 import com.narmeshnigam.a1remote.hid.RemoteFunction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -8,7 +9,24 @@ import kotlinx.coroutines.flow.update
 
 /** What [HidLink] needs from whatever is actually holding the Bluetooth proxy. */
 interface HidTransport {
+    /** Sends [function]'s current mapping as a key-down/key-up pair. */
     fun sendKey(function: RemoteFunction): SendResult
+
+    /**
+     * Sends one arbitrary report as a key-down/key-up pair, bypassing the key map.
+     *
+     * Key Lab needs this to try a candidate that is not mapped to anything yet.
+     */
+    fun sendPress(report: HidReport, label: String): SendResult
+
+    /**
+     * Sends a single report with no matching release.
+     *
+     * Only relative mouse motion may use this: a move report describes a delta that is over
+     * the moment it is delivered, so there is nothing to release. Anything that can be *held*
+     * goes through [sendPress] and gets its guaranteed key-up.
+     */
+    fun sendMotion(report: HidReport, label: String): SendResult
 }
 
 /**
