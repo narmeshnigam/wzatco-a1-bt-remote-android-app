@@ -96,19 +96,23 @@ I/A1HidService: Callback.onAppStatusChanged(pluggedDevice=null, registered=true)
 `onAppStatusChanged` reported `registered=false`, stop — that is the answer to open question 1
 and the fallback in BUILD_SPEC §9 opens up. Nothing further in this runbook will work.
 
-### 1.5 · Let the projector find the phone
+### 1.5 · Pair from the phone, then connect from the app
 
-Registering as a HID device does not make the phone discoverable. The projector has to be the
-one that pairs.
+The projector's own Bluetooth screen never lists the phone. On 2026-09-06 the A1 scanned with the
+phone discoverable and showed nothing under *Available equipment*, while its paired list held two
+speakers and one input device (`RGE_B_DF0415`). Its scan hides phone-class devices; it is a UI
+filter, not a stack limit. So the pairing runs the other way round:
 
-1. In the app, open the **Setup** tab and tap **Make discoverable**, then accept the system
-   prompt. (Opening the phone's own Settings → Bluetooth and leaving it on screen also works.)
-2. On the projector: **Settings → Bluetooth** (or *Remote & accessories*) → scan.
-3. The phone should appear under its Bluetooth name. Pair from the projector.
-4. Accept the pairing prompt on the phone.
-
-If the projector's Bluetooth screen only lists audio devices and never shows the phone, that is
-open question 7 and it is a real answer — record it.
+1. Identify the projector. Its Bluetooth name is **`NL_415AF8`**, address `BC:6B:FF:41:5A:F9`,
+   device class *Computer*, device-ID record vendor `0x00E0` / product `0x1200` — the values a
+   stock Android Bluetooth stack registers. (Seen from a Mac's Bluetooth panel on 2026-09-06.)
+   A device called `BC8-Android` is **not** the projector: it advertises only audio profiles and
+   never answers a page.
+2. On the phone: **Settings → Bluetooth → pair with `NL_415AF8`**. Accept any prompt on either
+   side.
+3. In the app, open **Setup**. The projector appears under *Paired devices · tap to connect*.
+   Tap it. The app calls `BluetoothHidDevice.connect()`; a stock Android 9 host accepts an
+   incoming HID connection from any bonded device.
 
 Back in the app, the link dot goes light, the host name appears, and the status line reads
 **Connected**. `adb logcat` shows:
@@ -116,6 +120,10 @@ Back in the app, the link dot goes light, the host name appears, and the status 
 ```
 I/A1HidService: Callback.onConnectionStateChanged(device=…, state=CONNECTED)
 ```
+
+If the stack log instead shows `LOWER_LAYER_CONNECT_CFM_NEG` on PSM `0x0011`, the projector
+refused the HID control channel. Record the exact reason code; it is the answer to open
+question 7.
 
 ### 1.6 · Send the key
 
@@ -135,7 +143,7 @@ a refused registration, and worth recording as such.
 
 1. Phone model and Android version (Settings → About device). Goes into open question 6.
 2. The exact value each of the four logcat lines printed.
-3. Whether the projector's Bluetooth screen found the phone, and what name it showed.
+3. Whether the phone bonded to `NL_415AF8`, and whether the projector's paired list shows the phone afterwards.
 4. Whether the focus moved.
 5. Whether the link survived a screen-off and back (open question 8).
 
