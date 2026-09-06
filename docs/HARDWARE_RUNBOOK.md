@@ -265,6 +265,58 @@ A function that survives Key Lab unmapped stays dashed on the keypad and transmi
 That is the app being honest, not the app being broken. Do not hand-edit the key map to make a
 key look finished.
 
+## §7 · Read the projector's own key layout (question 18)
+
+Sweeping usages from the phone only ever shows what the projector does *not* answer to. Its own
+key layout files say which scancode it maps to which Android keycode, and `getevent` shows whether
+a usage the phone sends arrives at all. That is the difference between "no code works" and "no code
+we can send works", and for Focus + it is the only way to reach an answer rather than a longer list
+of guesses — the A1's menus have no focus item, so the lost remote's keys were the only route.
+
+1. **Enable debugging on the A1.** Settings → About, click the build number until developer options
+   unlock, then switch on USB debugging.
+2. **Connect the projector to the machine** by its USB data port and accept the RSA prompt that
+   appears on the projected image. Check it appeared:
+
+   ```bash
+   adb devices -l          # the projector, not the phone; note its serial
+   ```
+
+   If nothing appears, that port is host-only (it powers sticks, it does not speak ADB). Then look
+   for ADB-over-network in the same developer options and use `adb connect <projector-ip>:5555`.
+3. **Survey the input stack.** Read-only; it writes a dated directory of dumps and prints a summary.
+
+   ```bash
+   tools/probe-a1.sh survey <projector-serial>
+   ```
+
+   The file that settles the question is `keylayouts.txt`. A line binding a scancode to a focus
+   keycode means focus *is* key-driven, and the scancode says whether HID can produce it. No such
+   line anywhere means focus never becomes an Android key event, and BUILD_SPEC §9's projector-side
+   fallback is the only remaining path.
+4. **Watch what actually arrives.** With the phone connected to the projector over Bluetooth:
+
+   ```bash
+   tools/probe-a1.sh watch <projector-serial>
+   ```
+
+   Press Focus + on the phone. A line means the usage reaches the projector and nothing is bound to
+   it; no line at all means it never arrives. Repeat for any candidate under test — this replaces
+   guessing from the projected image with reading the event.
+5. **Find the keycode that moves the lens.** This one *acts* on the projector, so it is deliberately
+   not in the script. With the projector watched, inject candidates one at a time:
+
+   ```bash
+   adb -s <projector-serial> shell input keyevent 168     # example: ZOOM_IN
+   ```
+
+   Do not inject 26 (POWER), 223 (SLEEP) or 224 (WAKEUP) — they end the session rather than answer
+   the question. If some keycode moves focus, the survey then says which scancode produces it, and
+   whether any HID usage the descriptor declares can reach that scancode.
+
+Record whatever comes back in `docs/OPEN_QUESTIONS.md` against question 18, and any usage that
+proves out in `docs/KEY_LAB.md`.
+
 ## §6 · Sign-off
 
 - `TEST_PLAN.md`'s manual matrix filled in, one row per function.
