@@ -92,6 +92,9 @@ class KeyLabPromotionTest {
             findings.recorded.map { it.usage },
         )
         assertFalse(keyMap.isVerified(RemoteFunction.FOCUS_DOWN))
-        assertEquals(RemoteFunction.SOURCE, session.state.value.function)
+        // Focus now carries a sweep, so an exhausted list falls into it rather than giving up on
+        // the function: the evidence is filed and there is still range left to walk.
+        assertEquals(RemoteFunction.FOCUS_DOWN, session.state.value.function)
+        assertEquals(KeyLabMode.SWEEP, session.state.value.mode)
     }
 }

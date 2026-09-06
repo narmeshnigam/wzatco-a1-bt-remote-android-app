@@ -38,12 +38,31 @@ Also required: a **manual mode** where the operator types any usage code by hand
 
 | Function | Candidates, in order |
 | --- | --- |
-| Focus + | Consumer `0x022D` Zoom In · Keyboard `0x3E` F5 · Consumer `0x0225` AC_Forward · Keyboard `0x57` Keypad + |
-| Focus − | Consumer `0x022E` Zoom Out · Keyboard `0x3F` F6 · Keyboard `0x56` Keypad − |
-| Source | Consumer `0x0089` Media Select TV · Keyboard `0x3D` F4 · Consumer `0x009D` Channel + |
+| Focus + | Consumer `0x022D` Zoom In · Keyboard `0x3E` F5 · Consumer `0x0225` AC_Forward · Keyboard `0x57` Keypad + · Keyboard `0x2E` Equals · Keyboard `0x4B` Page Up · Consumer `0x022F` Zoom · swept keyboard range `0x3A`–`0x45` (F1–F12) |
+| Focus − | Consumer `0x022E` Zoom Out · Keyboard `0x3F` F6 · Keyboard `0x56` Keypad − · Keyboard `0x2D` Minus · Keyboard `0x4E` Page Down · swept keyboard range `0x3A`–`0x45` (F1–F12) |
+| Source | Consumer `0x0089` Media Select TV · Keyboard `0x3D` F4 · Consumer `0x009C` Channel Increment · Consumer `0x009D` Channel Decrement · swept keyboard range `0x3A`–`0x45` (F1–F12) |
 | Screen flip | Keyboard `0x3C` F3 · Keyboard `0x3A` F1 · swept keyboard range `0x68`–`0x73` (F13–F24) |
 | Keystone | Keyboard `0x3B` F2 · Keyboard `0x40` F7 · swept consumer range `0x0180`–`0x018F` |
-| Power off | Consumer `0x0030` Power · Consumer `0x0032` Sleep · Keyboard `0x66` Power |
+| Power off | Consumer `0x0030` Power · Consumer `0x0032` Sleep · Keyboard `0x66` Power (no sweep: a sweep that walked into a working power-off would take the projector down before the operator could say which code did it) |
+
+Two corrections to this table, 2026-09-06:
+
+- It previously called Consumer `0x009D` "Channel +". In the HID usage tables `0x009C` is Channel Increment and `0x009D` is Channel Decrement, so the name was wrong for the code. Both are now listed under their real names.
+- Focus ± and Source gained the F1–F12 sweep. The shipped Focus + usage draws a key tone from the A1 but moves nothing, which means the usage arrives and no handler wants it; a vendor function bound to a plain function key is the next thing worth walking, and F1–F12 is inert on Android otherwise, so the sweep cannot type, navigate or switch anything off while it runs.
+
+## Reading the A1's own key layout
+
+Walking usages from the phone only ever shows what the projector does *not* answer to. The projector's own key layout files say which scancode it maps to which Android keycode, which is the difference between "no code works" and "no code we can send works". With ADB reachable on the A1 (open question 18):
+
+```bash
+adb connect <projector-ip>:5555
+adb shell ls /system/usr/keylayout/          # vendor .kl files
+adb shell cat /system/usr/keylayout/Generic.kl | grep -i "zoom\|focus"
+adb shell getevent -lp                       # input devices, including the phone once connected
+adb shell getevent -l                        # then press Focus + on the phone and read the event
+```
+
+`getevent -l` while the phone sends Focus + is the decisive test: it shows the exact Linux key code the A1 receives, or shows nothing, and that settles whether the function is reachable over HID at all.
 
 ## Findings JSON
 

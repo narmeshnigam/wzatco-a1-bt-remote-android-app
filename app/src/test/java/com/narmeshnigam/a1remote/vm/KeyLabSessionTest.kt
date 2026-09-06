@@ -24,7 +24,7 @@ class KeyLabSessionTest {
         assertEquals(KeyLabCandidates.FUNCTIONS.size, state.functionCount)
         assertEquals(KeyLabMode.CANDIDATES, state.mode)
         assertEquals(KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP).first(), state.candidate)
-        assertEquals("Code 1 of 4", state.positionLabel)
+        assertEquals("Code 1 of ${KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP).size}", state.positionLabel)
     }
 
     @Test
@@ -36,19 +36,32 @@ class KeyLabSessionTest {
         assertEquals(RemoteFunction.FOCUS_UP, state.function)
         assertEquals(1, state.candidateIndex)
         assertEquals(KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP)[1], state.candidate)
-        assertEquals("Code 2 of 4", state.positionLabel)
+        assertEquals("Code 2 of ${KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP).size}", state.positionLabel)
     }
 
     @Test
-    fun `an exhausted list advances to the next function`() {
+    fun `an exhausted list advances to the next function when there is no sweep to fall into`() {
+        val session = session()
+        // Power is the one function KEY_LAB gives no sweep, and it is last, so the pass wraps.
+        session.selectFunction(RemoteFunction.POWER)
+        repeat(KeyLabCandidates.listFor(RemoteFunction.POWER).size) { session.nextCandidate() }
+
+        val state = session.state.value
+        assertEquals(RemoteFunction.FOCUS_UP, state.function)
+        assertEquals(0, state.functionIndex)
+        assertEquals(0, state.candidateIndex)
+        assertEquals(KeyLabMode.CANDIDATES, state.mode)
+    }
+
+    @Test
+    fun `an exhausted focus list falls into the F1-F12 sweep rather than leaving the function`() {
         val session = session()
         repeat(KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP).size) { session.nextCandidate() }
 
         val state = session.state.value
-        assertEquals(RemoteFunction.FOCUS_DOWN, state.function)
-        assertEquals(1, state.functionIndex)
-        assertEquals(0, state.candidateIndex)
-        assertEquals(KeyLabMode.CANDIDATES, state.mode)
+        assertEquals(RemoteFunction.FOCUS_UP, state.function)
+        assertEquals(KeyLabMode.SWEEP, state.mode)
+        assertEquals(KeyLabCandidates.LOW_FUNCTION_KEY_SWEEP.candidateAt(0), state.candidate)
     }
 
     @Test
@@ -93,7 +106,7 @@ class KeyLabSessionTest {
         val state = session.state.value
         assertEquals(RemoteFunction.SCREEN_FLIP, state.function)
         assertEquals(KeyLabMode.SWEEP, state.mode)
-        assertEquals(KeyLabCandidates.FUNCTION_KEY_SWEEP.candidateAt(0), state.candidate)
+        assertEquals(KeyLabCandidates.HIGH_FUNCTION_KEY_SWEEP.candidateAt(0), state.candidate)
     }
 
     @Test
@@ -143,6 +156,7 @@ class KeyLabSessionTest {
     @Test
     fun `sweep mode is refused for a function KEY_LAB gives no range`() {
         val session = session()
+        session.selectFunction(RemoteFunction.POWER)
         session.setMode(KeyLabMode.SWEEP)
 
         assertEquals(KeyLabMode.CANDIDATES, session.state.value.mode)

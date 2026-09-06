@@ -15,13 +15,16 @@ import org.junit.Test
 class KeyLabCandidatesTest {
 
     @Test
-    fun `focus up is the four candidates KEY_LAB names, in order`() {
+    fun `focus up is the candidates KEY_LAB names, in order`() {
         assertEquals(
             listOf(
                 KeyLabCandidate(ReportKind.CONSUMER, 0x022D, "Zoom In"),
                 KeyLabCandidate(ReportKind.KEYBOARD, 0x3E, "F5"),
                 KeyLabCandidate(ReportKind.CONSUMER, 0x0225, "AC Forward"),
                 KeyLabCandidate(ReportKind.KEYBOARD, 0x57, "Keypad +"),
+                KeyLabCandidate(ReportKind.KEYBOARD, 0x2E, "Equals"),
+                KeyLabCandidate(ReportKind.KEYBOARD, 0x4B, "Page Up"),
+                KeyLabCandidate(ReportKind.CONSUMER, 0x022F, "Zoom"),
             ),
             KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP),
         )
@@ -63,16 +66,29 @@ class KeyLabCandidatesTest {
     }
 
     @Test
-    fun `only screen flip and keystone carry a sweep`() {
-        assertEquals(KeyLabCandidates.FUNCTION_KEY_SWEEP, KeyLabCandidates.sweepFor(RemoteFunction.SCREEN_FLIP))
+    fun `every unresolved function except power carries a sweep`() {
+        assertEquals(KeyLabCandidates.HIGH_FUNCTION_KEY_SWEEP, KeyLabCandidates.sweepFor(RemoteFunction.SCREEN_FLIP))
         assertEquals(KeyLabCandidates.CONSUMER_SWEEP, KeyLabCandidates.sweepFor(RemoteFunction.KEYSTONE))
-        assertNull(KeyLabCandidates.sweepFor(RemoteFunction.FOCUS_UP))
+        listOf(RemoteFunction.FOCUS_UP, RemoteFunction.FOCUS_DOWN, RemoteFunction.SOURCE).forEach { function ->
+            assertEquals(function.name, KeyLabCandidates.LOW_FUNCTION_KEY_SWEEP, KeyLabCandidates.sweepFor(function))
+        }
+        // Power stays list-only: a sweep that walks into a working power-off mid-run would take
+        // the projector down before the operator could say which code did it.
         assertNull(KeyLabCandidates.sweepFor(RemoteFunction.POWER))
     }
 
     @Test
+    fun `the focus sweep walks F1 to F12 and touches nothing else`() {
+        val sweep = KeyLabCandidates.LOW_FUNCTION_KEY_SWEEP
+        assertEquals(12, sweep.size)
+        assertEquals(KeyLabCandidate(ReportKind.KEYBOARD, 0x3A, "F1"), sweep.candidateAt(0))
+        assertEquals(KeyLabCandidate(ReportKind.KEYBOARD, 0x45, "F12"), sweep.candidateAt(11))
+        assertEquals("0x3A–0x45", sweep.describe())
+    }
+
+    @Test
     fun `the keyboard sweep walks F13 to F24`() {
-        val sweep = KeyLabCandidates.FUNCTION_KEY_SWEEP
+        val sweep = KeyLabCandidates.HIGH_FUNCTION_KEY_SWEEP
         assertEquals(12, sweep.size)
         assertEquals(KeyLabCandidate(ReportKind.KEYBOARD, 0x68, "F13"), sweep.candidateAt(0))
         assertEquals(KeyLabCandidate(ReportKind.KEYBOARD, 0x73, "F24"), sweep.candidateAt(11))

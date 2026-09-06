@@ -69,7 +69,17 @@ object KeyLabCandidates {
     )
 
     /** Keyboard 0x68..0x73. KEY_LAB.md names this range F13–F24, so the entries are named that. */
-    val FUNCTION_KEY_SWEEP = KeyLabSweep(ReportKind.KEYBOARD, 0x68, 0x73) { usage -> "F${usage - 0x68 + 13}" }
+    val HIGH_FUNCTION_KEY_SWEEP = KeyLabSweep(ReportKind.KEYBOARD, 0x68, 0x73) { usage -> "F${usage - 0x68 + 13}" }
+
+    /**
+     * Keyboard 0x3A..0x45 — F1–F12.
+     *
+     * The shipped Focus + usage (Consumer `0x022D` Zoom In) draws a key tone from the A1 but moves
+     * nothing, so the usage arrives and no handler wants it. A vendor function bound to a plain
+     * function key is the next thing worth walking, and F1–F12 is inert on Android otherwise: the
+     * sweep cannot type, navigate or switch anything off while it runs.
+     */
+    val LOW_FUNCTION_KEY_SWEEP = KeyLabSweep(ReportKind.KEYBOARD, 0x3A, 0x45) { usage -> "F${usage - 0x3A + 1}" }
 
     /**
      * Consumer 0x0180..0x018F.
@@ -86,16 +96,24 @@ object KeyLabCandidates {
             keyboard(0x3E, "F5"),
             consumer(0x0225, "AC Forward"),
             keyboard(0x57, "Keypad +"),
+            keyboard(0x2E, "Equals"),
+            keyboard(0x4B, "Page Up"),
+            consumer(0x022F, "Zoom"),
         ),
         RemoteFunction.FOCUS_DOWN to listOf(
             consumer(0x022E, "Zoom Out"),
             keyboard(0x3F, "F6"),
             keyboard(0x56, "Keypad −"),
+            keyboard(0x2D, "Minus"),
+            keyboard(0x4E, "Page Down"),
         ),
         RemoteFunction.SOURCE to listOf(
             consumer(0x0089, "Media Select TV"),
             keyboard(0x3D, "F4"),
-            consumer(0x009D, "Channel +"),
+            // 0x009C/0x009D are Channel Increment/Decrement in the HID tables. KEY_LAB.md called
+            // 0x009D "Channel +", which is the wrong name for that code; both are listed here now.
+            consumer(0x009C, "Channel Increment"),
+            consumer(0x009D, "Channel Decrement"),
         ),
         RemoteFunction.SCREEN_FLIP to listOf(
             keyboard(0x3C, "F3"),
@@ -113,7 +131,10 @@ object KeyLabCandidates {
     )
 
     private val sweeps: Map<RemoteFunction, KeyLabSweep> = mapOf(
-        RemoteFunction.SCREEN_FLIP to FUNCTION_KEY_SWEEP,
+        RemoteFunction.FOCUS_UP to LOW_FUNCTION_KEY_SWEEP,
+        RemoteFunction.FOCUS_DOWN to LOW_FUNCTION_KEY_SWEEP,
+        RemoteFunction.SOURCE to LOW_FUNCTION_KEY_SWEEP,
+        RemoteFunction.SCREEN_FLIP to HIGH_FUNCTION_KEY_SWEEP,
         RemoteFunction.KEYSTONE to CONSUMER_SWEEP,
     )
 
