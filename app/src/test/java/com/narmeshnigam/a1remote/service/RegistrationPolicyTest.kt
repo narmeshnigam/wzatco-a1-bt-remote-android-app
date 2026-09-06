@@ -2,6 +2,7 @@ package com.narmeshnigam.a1remote.service
 
 import com.narmeshnigam.a1remote.service.RegistrationPolicy.AfterReturn
 import com.narmeshnigam.a1remote.service.RegistrationPolicy.Next
+import com.narmeshnigam.a1remote.service.RegistrationPolicy.OnAdapter
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -57,5 +58,21 @@ class RegistrationPolicyTest {
                 attempt = RegistrationPolicy.MAX_ATTEMPTS,
             ),
         )
+    }
+
+    @Test
+    fun `the radio going off tears the link down whatever the registration says`() {
+        assertEquals(OnAdapter.TEAR_DOWN, RegistrationPolicy.onAdapterState(on = false, appRegistered = false))
+        assertEquals(OnAdapter.TEAR_DOWN, RegistrationPolicy.onAdapterState(on = false, appRegistered = true))
+    }
+
+    @Test
+    fun `the radio coming back registers again without a tap`() {
+        assertEquals(OnAdapter.REGISTER, RegistrationPolicy.onAdapterState(on = true, appRegistered = false))
+    }
+
+    @Test
+    fun `the radio coming back leaves a live registration alone`() {
+        assertEquals(OnAdapter.NONE, RegistrationPolicy.onAdapterState(on = true, appRegistered = true))
     }
 }

@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
 import com.narmeshnigam.a1remote.service.BondedHost
+import com.narmeshnigam.a1remote.service.LinkStage
 import com.narmeshnigam.a1remote.service.LinkState
 import com.narmeshnigam.a1remote.ui.theme.A1Colors
 import com.narmeshnigam.a1remote.ui.theme.A1Dimens
@@ -91,6 +92,7 @@ fun SetupScreen(
             when (step) {
                 0 -> RegisterStep(
                     registered = state.isRegistered,
+                    refused = state.stage == LinkStage.REGISTRATION_REFUSED,
                     bluetoothOn = bluetoothOn,
                     onConnect = onConnect,
                     onTurnOn = onTurnOnBluetooth,
@@ -170,6 +172,7 @@ private fun StepTab(
 @Composable
 private fun RegisterStep(
     registered: Boolean,
+    refused: Boolean,
     bluetoothOn: Boolean,
     onConnect: () -> Unit,
     onTurnOn: () -> Unit,
@@ -179,10 +182,13 @@ private fun RegisterStep(
     Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxHeight()) {
         StepCard(
             step = "Registration",
-            body = if (registered) {
-                "Registered as “WZATCO A1 Remote”."
-            } else {
-                "Not registered. Turn Bluetooth on, then tap Register."
+            body = when {
+                registered -> "Registered as “WZATCO A1 Remote”."
+                refused ->
+                    "Bluetooth refused the registration — it is usually holding one left behind by an " +
+                        "earlier run of this app. Tap Restart; the app registers again by itself once " +
+                        "Bluetooth is back."
+                else -> "Not registered. Turn Bluetooth on, then tap Register."
             },
         )
 
@@ -219,8 +225,9 @@ private fun RegisterStep(
                     )
                 }
                 BasicText(
-                    text = "Restart cycles the radio off and on — the surest fix for a stuck registration. " +
-                        "If the system asks, allow it.",
+                    text = "Restart cycles the radio — the surest fix for a stuck registration. On this phone " +
+                        "it opens the system Bluetooth screen: switch Bluetooth off and on there and come " +
+                        "back; the app registers again on its own.",
                     style = A1Type.Hint,
                 )
             }

@@ -13,21 +13,21 @@ class WheelMotionTest {
     private fun HidReport.wheel(): Int = data[3].toInt()
 
     @Test
-    fun `a downward strip drag scrolls down as a negative wheel value`() {
+    fun `a downward strip drag scrolls down as a positive wheel value on the A1`() {
         val report = WheelMotion().step(dy = oneTick)!!
         assertEquals(HidDescriptor.REPORT_ID_MOUSE, report.id)
-        assertEquals(-1, report.wheel())
+        assertEquals(1, report.wheel())
     }
 
     @Test
     fun `an upward drag scrolls the other way`() {
-        assertEquals(1, WheelMotion().step(dy = -oneTick)!!.wheel())
+        assertEquals(-1, WheelMotion().step(dy = -oneTick)!!.wheel())
     }
 
     @Test
     fun `a wheel report carries no button and no motion`() {
         val report = WheelMotion().step(dy = oneTick)!!
-        assertArrayEquals(byteArrayOf(MouseButton.NONE.toByte(), 0, 0, -1), report.data)
+        assertArrayEquals(byteArrayOf(MouseButton.NONE.toByte(), 0, 0, 1), report.data)
     }
 
     @Test
@@ -40,7 +40,7 @@ class WheelMotionTest {
         val wheel = WheelMotion()
         assertNull(wheel.step(dy = oneTick * 0.5f))
         // The carried half plus another half crosses one whole tick.
-        assertEquals(-1, wheel.step(dy = oneTick * 0.5f)!!.wheel())
+        assertEquals(1, wheel.step(dy = oneTick * 0.5f)!!.wheel())
     }
 
     @Test

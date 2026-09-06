@@ -12,6 +12,11 @@ package com.narmeshnigam.a1remote.service
  *   its predecessor gets `register_app: application already registered` and
  *   `unregister_app: BT-HD deregistering in progress` — both return `false` — until the stack
  *   finishes. A `false` return therefore does not by itself mean the ROM refused the profile.
+ * - A registration owned by a *dead* process is not always released. After an uninstall and
+ *   reinstall (new uid) the stack logged `unregisterAppUid(): caller UID doesn't match user UID`
+ *   and refused every `registerApp()` from the new uid; our own `unregisterApp()` cannot clear a
+ *   registration held for another uid. Only cycling Bluetooth cleared it — hence [onAdapterState]:
+ *   the radio coming back is the cue to register again without a tap.
  */
 object RegistrationPolicy {
     /** Attempts made before a `false` return is treated as a refusal. */
@@ -23,6 +28,8 @@ object RegistrationPolicy {
     enum class Next { ACQUIRE_PROXY, REGISTER, ALREADY_REGISTERED }
 
     enum class AfterReturn { WAIT_FOR_CALLBACK, KEEP_REGISTERED, RETRY_LATER, REFUSED }
+
+    enum class OnAdapter { TEAR_DOWN, REGISTER, NONE }
 
     fun next(proxyHeld: Boolean, appRegistered: Boolean): Next = when {
         !proxyHeld -> Next.ACQUIRE_PROXY
@@ -36,5 +43,16 @@ object RegistrationPolicy {
         appRegistered -> AfterReturn.KEEP_REGISTERED
         attempt < MAX_ATTEMPTS -> AfterReturn.RETRY_LATER
         else -> AfterReturn.REFUSED
+    }
+
+    /**
+     * What the phone's adapter switching [on] or off means for the link. Off takes the proxy and
+     * the registration with it, so the service tears down honestly; on is the cue to register
+     * again — unless the app is somehow still registered, in which case nothing is touched.
+     */
+    fun onAdapterState(on: Boolean, appRegistered: Boolean): OnAdapter = when {
+        !on -> OnAdapter.TEAR_DOWN
+        appRegistered -> OnAdapter.NONE
+        else -> OnAdapter.REGISTER
     }
 }

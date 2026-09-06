@@ -8,8 +8,9 @@ package com.narmeshnigam.a1remote.hid
  * frame independently would throw away every sub-unit frame, so a slow scroll would send nothing;
  * the fraction is carried in [residue] and spent on a later frame instead.
  *
- * Direction: a downward drag on the strip (positive `dy`) scrolls the content down, which is a
- * negative HID wheel value. The host decides the final feel; this only has to be consistent.
+ * Direction: a downward drag on the strip (positive `dy`) must scroll the content down. On the
+ * A1 that is a positive wheel value — the negative sign the HID convention suggests scrolled
+ * the wrong way on hardware (2026-09-06), so the sign here follows the projector, not the spec.
  *
  * An instance is stateful and belongs to one strip. Call [reset] when a gesture begins.
  *
@@ -38,7 +39,7 @@ class WheelMotion(private val gain: Float = SCROLL_GAIN) {
         residue -= ticks
 
         if (ticks == 0) return null
-        return HidReports.mouse(wheel = -ticks)
+        return HidReports.mouse(wheel = ticks)
     }
 
     companion object {

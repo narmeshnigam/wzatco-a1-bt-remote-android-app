@@ -74,7 +74,8 @@ Layout, hierarchy and every value are in `DESIGN_SPEC.md`.
 - Ask from a rationale screen, never on cold launch. A denial leaves the app usable and honest about what is blocked.
 - Unregister the HID app and release the proxy in `onDestroy`; re-register idempotently on next start. Never leak a registration across process death.
 - Reconnect: on host disconnect, retry the last known host three times with backoff, then wait for a manual connect.
-- Remembered host: the address of the last host that actually reached the connected state is kept in the `settings` DataStore. On service start, once the HID app is registered, the service makes one automatic connect attempt to it if it is still bonded — one attempt per service lifetime, never a loop.
+- Remembered host: the address of the last host that actually reached the connected state is kept in the `settings` DataStore. On service start, once the HID app is registered, the service makes one automatic connect attempt to it if it is still bonded — one attempt per registration (so once more after a Bluetooth restart), never a loop.
+- Bluetooth cycling: the service listens for the adapter state. Off tears the link down honestly (stage `BLUETOOTH_OFF`); on registers again without a tap. When registration is refused ten times the message names the likely cause — a registration the stack still holds for a dead process (open question 17) — and the fix, a Bluetooth restart.
 - Phone Bluetooth: Setup offers On / Off / Restart. On goes through the system consent dialog (`ACTION_REQUEST_ENABLE`). Off and Restart try the deprecated direct calls and, when the OS refuses them (expected on stock API 33+), open the system Bluetooth settings instead. The app never claims to have toggled a radio it did not (open question 16).
 - Portrait only: `MainActivity` declares `screenOrientation="portrait"`. The app is a remote held in one hand.
 

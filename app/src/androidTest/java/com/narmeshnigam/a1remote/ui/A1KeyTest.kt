@@ -36,10 +36,8 @@ class A1KeyTest {
                 modifier = Modifier.size(80.dp),
             )
         }
-        // Let the first frame land before pausing the clock. Pausing it first once left the very
-        // first touch with no compose hierarchy to hit on the DN2101 — a harness race that passes
-        // on re-run, not a key bug.
-        compose.waitForIdle()
+        // The key must be in the tree before the clock is paused (see awaitKey).
+        compose.awaitKey("Down")
         compose.mainClock.autoAdvance = false
     }
 
@@ -53,7 +51,7 @@ class A1KeyTest {
                 modifier = Modifier.size(80.dp),
             )
         }
-        compose.waitForIdle()
+        compose.awaitKey("Host")
     }
 
     @Test

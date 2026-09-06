@@ -62,6 +62,7 @@ class KeypadScreenTest {
                 onOpenCursor = {},
             )
         }
+        compose.awaitKey("Up")
     }
 
     @Test
@@ -147,6 +148,7 @@ class KeypadScreenTest {
                 onOpenCursor = { opened = true },
             )
         }
+        compose.awaitKey(TRACKPAD)
 
         compose.onNodeWithContentDescription(TRACKPAD).performClick()
         compose.waitForIdle()

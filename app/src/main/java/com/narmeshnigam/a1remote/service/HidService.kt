@@ -10,8 +10,10 @@ import android.bluetooth.BluetoothHidDevice
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -68,7 +70,7 @@ class HidService :
     @Volatile
     private var savedHostAddress: String? = null
 
-    /** The one-shot on-start reach for the saved host — only ever tried once per service life. */
+    /** The one-shot reach for the saved host — once per registration, so again after a radio restart. */
     private var autoConnectAttempted = false
 
     @Volatile
@@ -81,6 +83,57 @@ class HidService :
     @Volatile
     private var lastHost: BluetoothDevice? = null
 
+    /**
+     * The radio going off takes the proxy and the registration with it; coming back is the cue to
+     * register again without a tap. That is what makes Setup's Restart a one-step fix for a
+     * registration the stack is still holding for a dead process (RegistrationPolicy, uid note).
+     */
+    private val adapterStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != BluetoothAdapter.ACTION_STATE_CHANGED) return
+            when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
+                BluetoothAdapter.STATE_OFF -> onAdapterState(on = false)
+                BluetoothAdapter.STATE_ON -> onAdapterState(on = true)
+            }
+        }
+    }
+
+    private fun onAdapterState(on: Boolean) {
+        Log.i(TAG, "adapter state changed: on=$on registered=$appRegistered")
+        note("adapter", if (on) "switched on" else "switched off")
+        when (RegistrationPolicy.onAdapterState(on, appRegistered)) {
+            RegistrationPolicy.OnAdapter.TEAR_DOWN -> tearDownForRadioOff()
+            RegistrationPolicy.OnAdapter.REGISTER -> register()
+            RegistrationPolicy.OnAdapter.NONE -> Unit
+        }
+    }
+
+    /** The stack has already dropped everything; this only makes the app's state say so. */
+    private fun tearDownForRadioOff() {
+        registerRetryJob?.cancel()
+        reconnectJob?.cancel()
+        connectTimeoutJob?.cancel()
+        connecting = false
+        proxy?.let { hid -> runCatching { adapter?.closeProfileProxy(BluetoothProfile.HID_DEVICE, hid) } }
+        proxy = null
+        host = null
+        appRegistered = false
+        // A fresh registration earns a fresh reach for the remembered host.
+        autoConnectAttempted = false
+        HidLink.update {
+            it.copy(
+                stage = LinkStage.BLUETOOTH_OFF,
+                adapterEnabled = false,
+                proxyConnected = false,
+                appStatusRegistered = false,
+                hostName = null,
+                hostAddress = null,
+                message = RADIO_OFF_MESSAGE,
+            )
+        }
+        updateNotification()
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -88,6 +141,13 @@ class HidService :
         Log.i(TAG, "onCreate")
         notification.createChannel()
         HidLink.transport = this
+        // ACTION_STATE_CHANGED is a protected broadcast: only the system can send it.
+        ContextCompat.registerReceiver(
+            this,
+            adapterStateReceiver,
+            IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
+            ContextCompat.RECEIVER_EXPORTED,
+        )
         // Read the remembered host before registration lands, so the on-start auto-connect has
         // something to reach for the moment the app is registered.
         serviceScope.launch {
@@ -120,6 +180,7 @@ class HidService :
     override fun onDestroy() {
         Log.i(TAG, "onDestroy")
         HidLink.transport = null
+        runCatching { unregisterReceiver(adapterStateReceiver) }
         reconnectJob?.cancel()
         serviceScope.cancel()
         unregister()
@@ -270,8 +331,9 @@ class HidService :
             RegistrationPolicy.AfterReturn.REFUSED -> HidLink.update {
                 it.copy(
                     stage = LinkStage.REGISTRATION_REFUSED,
-                    message = "registerApp() returned false ${RegistrationPolicy.MAX_ATTEMPTS} times — " +
-                        "the stack refused the HID Device profile",
+                    message = "Bluetooth refused the registration ${RegistrationPolicy.MAX_ATTEMPTS} times. " +
+                        "It is most likely still holding one left behind by an earlier run of this app; " +
+                        "restart Bluetooth (Setup › Register › Restart) and the app registers again by itself.",
                 )
             }
         }
@@ -313,11 +375,13 @@ class HidService :
             proxy = null
             host = null
             note("proxy", "HID_DEVICE proxy disconnected")
+            // The proxy always goes when the radio does; that is not the ROM refusing anything.
+            val radioOff = adapter?.isEnabled == false
             HidLink.update {
                 it.copy(
-                    stage = LinkStage.PROXY_REFUSED,
+                    stage = if (radioOff) LinkStage.BLUETOOTH_OFF else LinkStage.PROXY_REFUSED,
                     proxyConnected = false,
-                    message = "HID_DEVICE proxy disconnected",
+                    message = if (radioOff) RADIO_OFF_MESSAGE else "HID_DEVICE proxy disconnected",
                 )
             }
             updateNotification()
@@ -637,6 +701,7 @@ class HidService :
         private const val SDP_NAME = "WZATCO A1 Remote"
         private const val SDP_DESCRIPTION = "Projector remote"
         private const val SDP_PROVIDER = "narmeshnigam"
+        private const val RADIO_OFF_MESSAGE = "Bluetooth is switched off; the app registers again when it returns"
 
         fun start(context: Context) {
             ContextCompat.startForegroundService(context, Intent(context, HidService::class.java))
