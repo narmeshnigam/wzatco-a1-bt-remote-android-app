@@ -83,6 +83,7 @@ fun A1Key(
     iconSize: Dp = A1Dimens.KeyIcon,
     showLabel: Boolean = true,
     labelStyle: TextStyle = A1Type.KeyLabel,
+    caption: String? = null,
     repeating: Boolean = false,
     tapToClick: Boolean = false,
 ) {
@@ -190,6 +191,12 @@ fun A1Key(
                     style = labelStyle.copy(color = content, textAlign = TextAlign.Center),
                 )
             }
+            if (caption != null) {
+                BasicText(
+                    text = caption.uppercase(),
+                    style = A1Type.KeyCaption.copy(color = content, textAlign = TextAlign.Center),
+                )
+            }
         }
     }
 }
@@ -221,7 +228,7 @@ fun A1Panel(modifier: Modifier = Modifier, dashed: Boolean = false, content: @Co
                     Modifier.border(A1Dimens.Hairline, A1Colors.KeyBorder, RectangleShape)
                 },
             )
-            .padding(14.dp),
+            .padding(12.dp),
     ) {
         content()
     }

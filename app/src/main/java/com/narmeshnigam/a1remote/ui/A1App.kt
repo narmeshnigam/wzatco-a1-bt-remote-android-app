@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.narmeshnigam.a1remote.hid.RemoteFunction
+import com.narmeshnigam.a1remote.service.BluetoothControls
 import com.narmeshnigam.a1remote.ui.theme.A1Colors
 import com.narmeshnigam.a1remote.ui.theme.A1Dimens
 import com.narmeshnigam.a1remote.vm.RemoteViewModel
@@ -90,9 +91,27 @@ private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modif
     val wireLog by viewModel.wireLog.collectAsStateWithLifecycle()
     val bindings by viewModel.bindings.collectAsStateWithLifecycle()
     val bondedHosts by viewModel.bondedHosts.collectAsStateWithLifecycle()
+    val bluetoothOn by viewModel.bluetoothOn.collectAsStateWithLifecycle()
+
+    // Switching Bluetooth on is the one control the OS keeps behind its own consent dialog.
+    val enableBluetooth = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { viewModel.refreshBondedHosts() }
 
     var screen by rememberSaveable { mutableStateOf(A1Screen.KEYPAD) }
     var diagnosticsOpen by rememberSaveable { mutableStateOf(false) }
+
+    // Tapping a key that has no working code yet takes the user to Fix Keys for that function,
+    // rather than sending a report the A1 ignores. The pending function is applied on arrival.
+    var pendingFix by remember { mutableStateOf<RemoteFunction?>(null) }
+    val onKey: (RemoteFunction) -> Unit = { function ->
+        if (viewModel.isVerified(function)) {
+            viewModel.press(function)
+        } else {
+            pendingFix = function
+            screen = A1Screen.KEY_LAB
+        }
+    }
 
     LaunchedEffect(Unit) { viewModel.connect() }
 
@@ -101,7 +120,7 @@ private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modif
             StatusRow(
                 state = state,
                 powerVerified = viewModel.isVerified(RemoteFunction.POWER),
-                onPower = { viewModel.press(RemoteFunction.POWER) },
+                onPower = { onKey(RemoteFunction.POWER) },
                 onOpenDiagnostics = { diagnosticsOpen = true },
             )
 
@@ -110,15 +129,16 @@ private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modif
                     A1Screen.KEYPAD -> KeypadScreen(
                         bindings = bindings,
                         connected = state.isConnected,
-                        onPress = viewModel::press,
+                        onPress = onKey,
                         onOpenCursor = { screen = A1Screen.CURSOR },
                     )
 
-                    A1Screen.CURSOR -> CursorScreen(
-                        onReturnToKeypad = { screen = A1Screen.KEYPAD },
-                    )
+                    A1Screen.CURSOR -> CursorScreen()
 
-                    A1Screen.KEY_LAB -> KeyLabScreen()
+                    A1Screen.KEY_LAB -> KeyLabScreen(
+                        initialFunction = pendingFix,
+                        onFunctionConsumed = { pendingFix = null },
+                    )
 
                     A1Screen.SETUP -> {
                         // Pairing can happen in the system settings while this screen is away.
@@ -127,10 +147,25 @@ private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modif
                         SetupScreen(
                             state = state,
                             bondedHosts = bondedHosts,
+                            bluetoothOn = bluetoothOn,
                             onConnect = viewModel::connect,
                             onDisconnect = viewModel::disconnect,
                             onMakeDiscoverable = { context.requestDiscoverable() },
                             onConnectHost = { viewModel.connectHost(it.address) },
+                            onTurnOnBluetooth = {
+                                enableBluetooth.launch(BluetoothControls.enableDialogIntent())
+                            },
+                            onTurnOffBluetooth = {
+                                if (!viewModel.turnOffBluetooth()) {
+                                    context.startActivity(BluetoothControls.settingsIntent())
+                                }
+                            },
+                            onRestartBluetooth = {
+                                if (!viewModel.restartBluetooth()) {
+                                    context.startActivity(BluetoothControls.settingsIntent())
+                                }
+                            },
+                            onRefreshDevices = viewModel::refreshBondedHosts,
                         )
                     }
                 }

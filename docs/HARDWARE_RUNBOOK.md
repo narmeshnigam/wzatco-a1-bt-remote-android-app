@@ -191,7 +191,7 @@ Gate 3's exit test. No misfires, no stuck keys.
 - **Power**: hold the power key at the top right. It should do nothing until 600 ms, then give
   a second, doubled tick before it transmits. A tap must do nothing at all. **Read the warning
   under §5 before you press it.**
-- **Cursor**: switch to the **Cursor** tab, drag on the dashed surface. See open questions 9
+- **Trackpad**: switch to the **Trackpad** tab, drag on the dashed surface. See open questions 9
   and 10 — nobody has confirmed the A1 acts on mouse reports at all.
 - **Screen**: the phone must not blank while the app is in front.
 - **Standby**: put the projector into standby, wait, and press a key. Then wake it. This is
@@ -238,7 +238,7 @@ Open the **Key Lab** tab. It starts at Focus + , candidate 1 of 4.
 
 ### 5.2 · Before you trust a sweep
 
-**Sweep mode proves nothing until open question 11 is answered.** It walks a range at 700 ms per
+**Auto-scan (sweep) mode proves nothing until open question 11 is answered.** It walks a range at 700 ms per
 step, and if the A1 coalesces or debounces presses at that rate a real hit can pass unseen.
 
 Answer it first: on the keypad, press **Vol +** sixteen times at roughly the sweep's pace and

@@ -20,6 +20,7 @@ import android.util.Log
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.narmeshnigam.a1remote.data.KeyMaps
+import com.narmeshnigam.a1remote.data.LastHostStore
 import com.narmeshnigam.a1remote.hid.HidDescriptor
 import com.narmeshnigam.a1remote.hid.HidReport
 import com.narmeshnigam.a1remote.hid.HidReports
@@ -44,6 +45,9 @@ import java.util.concurrent.Executors
  * Device profile the refusal is then unmistakable in logcat and on screen, rather than looking
  * like an application bug.
  */
+// A HID device service legitimately carries many small methods — the profile lifecycle, the
+// registration state machine and the transmission API each need their own.
+@Suppress("TooManyFunctions")
 class HidService :
     Service(),
     HidTransport {
@@ -51,6 +55,7 @@ class HidService :
     private val reportExecutor = Executors.newSingleThreadExecutor()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val notification by lazy { LinkNotification(this) }
+    private val lastHostStore by lazy { LastHostStore(this) }
 
     private var adapter: BluetoothAdapter? = null
     private var proxy: BluetoothHidDevice? = null
@@ -58,6 +63,13 @@ class HidService :
     private var registerRetryJob: Job? = null
     private var reconnectJob: Job? = null
     private var connectTimeoutJob: Job? = null
+
+    /** The address of the last host that actually connected, read back from [LastHostStore]. */
+    @Volatile
+    private var savedHostAddress: String? = null
+
+    /** The one-shot on-start reach for the saved host — only ever tried once per service life. */
+    private var autoConnectAttempted = false
 
     @Volatile
     private var connecting = false
@@ -76,6 +88,12 @@ class HidService :
         Log.i(TAG, "onCreate")
         notification.createChannel()
         HidLink.transport = this
+        // Read the remembered host before registration lands, so the on-start auto-connect has
+        // something to reach for the moment the app is registered.
+        serviceScope.launch {
+            savedHostAddress = runCatching { lastHostStore.get() }.getOrNull()
+            maybeAutoConnect()
+        }
     }
 
     // FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE is an API 29 constant inlined at compile time, and
@@ -157,6 +175,7 @@ class HidService :
                     it.copy(stage = if (host != null) LinkStage.CONNECTED else LinkStage.REGISTERED, message = null)
                 }
                 updateNotification()
+                maybeAutoConnect()
             }
         }
     }
@@ -323,6 +342,7 @@ class HidService :
                 )
             }
             updateNotification()
+            if (registered) maybeAutoConnect()
         }
 
         override fun onConnectionStateChanged(device: BluetoothDevice, state: Int) {
@@ -335,6 +355,9 @@ class HidService :
                     connecting = false
                     connectTimeoutJob?.cancel()
                     reconnectJob?.cancel()
+                    // Remember it for the next app start.
+                    savedHostAddress = device.address
+                    serviceScope.launch { runCatching { lastHostStore.set(device.address) } }
                     HidLink.update {
                         it.copy(
                             stage = LinkStage.CONNECTED,
@@ -442,6 +465,29 @@ class HidService :
                 note("reconnect", "gave up after $RECONNECT_ATTEMPTS attempts; connect manually")
             }
         }
+    }
+
+    /**
+     * Reaches for the remembered host once, the moment the app is registered on a fresh start.
+     *
+     * It runs at most once per service life ([autoConnectAttempted]) and only for a device the
+     * phone is still bonded with, so it never fights a deliberate disconnect and never pages a
+     * device the user has since unpaired.
+     */
+    @SuppressLint("MissingPermission") // guarded by hasBluetoothPermission()
+    private fun maybeAutoConnect() {
+        if (autoConnectAttempted || host != null) return
+        if (connecting || !appRegistered) return
+        if (!hasBluetoothPermission()) return
+        val address = savedHostAddress ?: return
+        val bonded = adapter?.bondedDevices?.any { it.address == address } == true
+        if (!bonded) return
+        val device = runCatching { adapter?.getRemoteDevice(address) }.getOrNull() ?: return
+        autoConnectAttempted = true
+        lastHost = device
+        Log.i(TAG, "auto-connecting to remembered host $address")
+        note("connect", "auto-connect to remembered host $address")
+        requestConnect(device)
     }
 
     // endregion

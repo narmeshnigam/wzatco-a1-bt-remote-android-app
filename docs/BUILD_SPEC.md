@@ -51,10 +51,11 @@ The remote is used in a dark room, one-handed, without looking at the phone. The
 - Minimum touch target 58 × 58 dp; 6 dp gutters. No key smaller than any other in its row.
 - Fixed geometry. The keypad never scrolls and rows never reflow — position is the only cue a thumb has.
 - Press feedback: the cell fills with the accent for 90 ms; a 12 ms haptic tick fires on key-**down**, not key-up.
-- Auto-repeat on D-pad, Volume and Focus: 400 ms delay, then every 90 ms while held.
-- Power requires a 600 ms long-press and a confirming double haptic.
+- Auto-repeat on D-pad, Volume and Focus: 400 ms delay, then every 90 ms while held. An unverified key never repeats.
+- Power, once confirmed, requires a 600 ms long-press and a confirming double haptic. While it is unverified a plain tap routes to Fix Keys — there is nothing to fire.
+- **Unverified keys route, they do not send.** A key whose code is not yet confirmed on the A1 (Focus ±, Source, Flip, Keystone and Power at the time of writing) is drawn unverified with a SET UP caption, stays tappable even with no host, and its press opens Fix Keys with that function preselected instead of transmitting a report the projector ignores. Once confirmed it behaves like any other key, with no rebuild.
 - Screen stays awake while the remote screen is foreground. No lock-screen presence in v1.
-- On host disconnect, keys grey out immediately and the status line says so. Never queue reports for a dead link.
+- On host disconnect, confirmed keys grey out immediately and the status line says so. Never queue reports for a dead link. Unverified keys stay live: a route to Fix Keys is not a transmission.
 
 ## 6 · Screens
 
@@ -62,10 +63,10 @@ Layout, hierarchy and every value are in `DESIGN_SPEC.md`.
 
 | Screen | Contents |
 | --- | --- |
-| Keypad | Status line with host name and link state, power key top-right; 3 × 3 D-pad block with OK filled; four rows of three — Back / Home / Menu, Vol − / Mute / Vol +, Focus − / Focus + / Source, Flip / Keystone / Cursor. |
-| Cursor | Full-height drag surface sending relative mouse deltas at 1.6× acceleration; tap = left click; two-finger tap = Back; explicit return-to-keypad key. |
-| Key Lab | Function under test, current candidate and index, running verdict list, three actions: Send (primary), It worked, No effect. JSON export. |
-| Setup | Three numbered steps — register the HID profile, pair from the projector's Bluetooth settings, run the standby test — plus the connect/disconnect primary action. |
+| Keypad | Status line with host name and link state, power key top-right; 3 × 3 D-pad block with OK filled; four rows of three — Back / Home / Menu, Vol − / Mute / Vol +, Focus − / Focus + / Source, Flip / Keystone / Trackpad. |
+| Trackpad | Full-height drag surface sending relative mouse deltas at 1.6× acceleration; tap = left click; two-finger tap = Back. A collapsible scroll strip down the right edge sends wheel motion. Below, one compact row: Left click / Double click / Back. Return to the keypad is via the tab bar. |
+| Fix Keys | The user-facing name of Key Lab. A button picker across the top; the function under test with its current code and index; a running verdict list; modes Suggested / Type code / Auto-scan; actions Send (primary), It worked, No effect, Did something else. JSON export. Tapping an unverified keypad key opens it with that function preselected. |
+| Setup | A three-step stepper — 1 Register (HID registration plus the phone's own Bluetooth On / Off / Restart), 2 Pair (make discoverable, refresh, tap-to-connect bond list), 3 Connect (link status, the standby test, the connect/disconnect primary action). |
 
 ## 7 · Permissions and lifecycle
 
@@ -73,6 +74,9 @@ Layout, hierarchy and every value are in `DESIGN_SPEC.md`.
 - Ask from a rationale screen, never on cold launch. A denial leaves the app usable and honest about what is blocked.
 - Unregister the HID app and release the proxy in `onDestroy`; re-register idempotently on next start. Never leak a registration across process death.
 - Reconnect: on host disconnect, retry the last known host three times with backoff, then wait for a manual connect.
+- Remembered host: the address of the last host that actually reached the connected state is kept in the `settings` DataStore. On service start, once the HID app is registered, the service makes one automatic connect attempt to it if it is still bonded — one attempt per service lifetime, never a loop.
+- Phone Bluetooth: Setup offers On / Off / Restart. On goes through the system consent dialog (`ACTION_REQUEST_ENABLE`). Off and Restart try the deprecated direct calls and, when the OS refuses them (expected on stock API 33+), open the system Bluetooth settings instead. The app never claims to have toggled a radio it did not (open question 16).
+- Portrait only: `MainActivity` declares `screenOrientation="portrait"`. The app is a remote held in one hand.
 
 ## 8 · Tests
 

@@ -28,6 +28,14 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    installation {
+        // The instrumented suite needs BLUETOOTH_CONNECT / BLUETOOTH_ADVERTISE held. This phone's
+        // ROM (OxygenOS 13) refuses shell grants after install — "Neither user 2000 nor current
+        // process has GRANT_RUNTIME_PERMISSIONS" — but honours grants made at install time, so
+        // every install through Gradle carries -g. See docs/TEST_PLAN.md, "Instrumented".
+        installOptions("-g")
+    }
+
     signingConfigs {
         if (keystoreProperties.isNotEmpty()) {
             create("release") {

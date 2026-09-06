@@ -81,7 +81,7 @@ fun KeypadScreen(
             FunctionKey(RemoteFunction.SCREEN_FLIP, "Flip", A1Icons.Flip, bindings, connected, onPress)
             FunctionKey(RemoteFunction.KEYSTONE, "Keystone", A1Icons.Keystone, bindings, connected, onPress)
             A1Key(
-                label = "Cursor",
+                label = "Trackpad",
                 icon = A1Icons.Cursor,
                 onPress = onOpenCursor,
                 modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -108,13 +108,19 @@ private fun RowScope.FunctionKey(
     connected: Boolean,
     onPress: (RemoteFunction) -> Unit,
 ) {
+    // An unverified key has no code that works on the A1 yet. It says so with a "SET UP" caption,
+    // does not auto-repeat, and its press is routed (by the caller) to Fix Keys rather than sent.
+    val unverified = styleOf(bindings[function]) == KeyStyle.UNVERIFIED
     A1Key(
         label = label,
         icon = icon,
         style = styleOf(bindings[function]),
-        enabled = connected,
+        // A confirmed key needs a live link to send; an unverified key only routes to Fix Keys,
+        // so it stays tappable even with no host — it is never a dead button.
+        enabled = connected || unverified,
         onPress = { onPress(function) },
-        repeating = function.repeatBehaviour() == RepeatBehaviour.REPEATING,
+        caption = if (unverified) "Set up" else null,
+        repeating = !unverified && function.repeatBehaviour() == RepeatBehaviour.REPEATING,
         modifier = Modifier.weight(1f).fillMaxHeight(),
     )
 }

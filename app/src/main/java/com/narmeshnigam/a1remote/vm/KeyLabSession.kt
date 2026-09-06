@@ -40,13 +40,13 @@ internal suspend fun fileVerdict(
 /** The three ways of choosing what Send transmits, all three required by KEY_LAB.md. */
 enum class KeyLabMode(val label: String) {
     /** Walk the candidate list for this function, in the order KEY_LAB.md gives it. */
-    CANDIDATES("Candidates"),
+    CANDIDATES("Suggested"),
 
     /** Type any usage by hand. */
-    MANUAL("Manual"),
+    MANUAL("Type code"),
 
     /** Walk a declared range with a fixed gap, watching for a reaction. */
-    SWEEP("Sweep"),
+    SWEEP("Auto-scan"),
 }
 
 /**
@@ -115,18 +115,18 @@ data class KeyLabState(
             KeyLabMode.SWEEP -> sweep?.candidate
         }
 
-    /** `Candidate 2 of 4` — the left half of the line under the function name. */
+    /** `Code 2 of 4` — the left half of the line under the button name. */
     val positionLabel: String
         get() = when (mode) {
             KeyLabMode.CANDIDATES -> if (candidates.isEmpty()) {
-                "No listed candidates"
+                "No suggested codes"
             } else {
-                "Candidate ${candidateIndex + 1} of ${candidates.size}"
+                "Code ${candidateIndex + 1} of ${candidates.size}"
             }
 
-            KeyLabMode.MANUAL -> "Manual entry"
-            KeyLabMode.SWEEP -> sweep?.let { "Sweep ${it.index + 1} of ${it.sweep.size} · ${it.sweep.describe()}" }
-                ?: "No sweep for this function"
+            KeyLabMode.MANUAL -> "Typed code"
+            KeyLabMode.SWEEP -> sweep?.let { "Scan ${it.index + 1} of ${it.sweep.size} · ${it.sweep.describe()}" }
+                ?: "No scan for this button"
         }
 
     /** True when this function has a range KEY_LAB.md says to sweep. */

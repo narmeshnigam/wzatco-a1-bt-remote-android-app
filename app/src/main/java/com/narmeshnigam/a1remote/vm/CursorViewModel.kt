@@ -6,6 +6,7 @@ import com.narmeshnigam.a1remote.hid.CursorMotion
 import com.narmeshnigam.a1remote.hid.HidReports
 import com.narmeshnigam.a1remote.hid.MouseButton
 import com.narmeshnigam.a1remote.hid.RemoteFunction
+import com.narmeshnigam.a1remote.hid.WheelMotion
 import com.narmeshnigam.a1remote.service.HidLink
 import com.narmeshnigam.a1remote.service.LinkState
 import com.narmeshnigam.a1remote.service.SendResult
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class CursorViewModel(application: Application) : AndroidViewModel(application) {
 
     private val motion = CursorMotion()
+    private val wheel = WheelMotion()
 
     val link: StateFlow<LinkState> = HidLink.state
 
@@ -50,6 +52,23 @@ class CursorViewModel(application: Application) : AndroidViewModel(application) 
         _lastResult.value = HidLink.sendPress(down, CLICK_LABEL)
     }
 
+    /** Two left clicks back to back — a double-click is just that on the wire. */
+    fun doubleClick() {
+        val down = HidReports.mouse(buttons = MouseButton.LEFT)
+        HidLink.sendPress(down, DOUBLE_CLICK_LABEL)
+        _lastResult.value = HidLink.sendPress(down, DOUBLE_CLICK_LABEL)
+    }
+
+    /** Start of a scroll-strip drag: the previous gesture's leftover fraction is not this one's. */
+    fun beginScroll() = wheel.reset()
+
+    /** One touch frame of scroll, in pixels of strip travel, sent as a relative wheel report. */
+    fun scroll(dy: Float) {
+        wheel.step(dy)?.let { report ->
+            _lastResult.value = HidLink.sendMotion(report, SCROLL_LABEL)
+        }
+    }
+
     /** Two-finger tap. Back is a mapped function, so it goes through the ordinary key path. */
     fun back() {
         _lastResult.value = HidLink.sendKey(RemoteFunction.BACK)
@@ -58,5 +77,7 @@ class CursorViewModel(application: Application) : AndroidViewModel(application) 
     private companion object {
         const val MOVE_LABEL = "CURSOR move"
         const val CLICK_LABEL = "CURSOR left click"
+        const val DOUBLE_CLICK_LABEL = "CURSOR double click"
+        const val SCROLL_LABEL = "CURSOR scroll"
     }
 }

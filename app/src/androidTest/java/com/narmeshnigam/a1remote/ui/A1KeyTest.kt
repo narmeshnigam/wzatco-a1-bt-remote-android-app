@@ -28,7 +28,6 @@ class A1KeyTest {
 
     private fun setKey(repeating: Boolean) {
         presses = 0
-        compose.mainClock.autoAdvance = false
         compose.setContent {
             A1Key(
                 label = "Down",
@@ -37,6 +36,11 @@ class A1KeyTest {
                 modifier = Modifier.size(80.dp),
             )
         }
+        // Let the first frame land before pausing the clock. Pausing it first once left the very
+        // first touch with no compose hierarchy to hit on the DN2101 — a harness race that passes
+        // on re-run, not a key bug.
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
     }
 
     private fun setTapKey() {
@@ -49,6 +53,7 @@ class A1KeyTest {
                 modifier = Modifier.size(80.dp),
             )
         }
+        compose.waitForIdle()
     }
 
     @Test

@@ -24,7 +24,7 @@ class KeyLabSessionTest {
         assertEquals(KeyLabCandidates.FUNCTIONS.size, state.functionCount)
         assertEquals(KeyLabMode.CANDIDATES, state.mode)
         assertEquals(KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP).first(), state.candidate)
-        assertEquals("Candidate 1 of 4", state.positionLabel)
+        assertEquals("Code 1 of 4", state.positionLabel)
     }
 
     @Test
@@ -36,7 +36,7 @@ class KeyLabSessionTest {
         assertEquals(RemoteFunction.FOCUS_UP, state.function)
         assertEquals(1, state.candidateIndex)
         assertEquals(KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP)[1], state.candidate)
-        assertEquals("Candidate 2 of 4", state.positionLabel)
+        assertEquals("Code 2 of 4", state.positionLabel)
     }
 
     @Test
@@ -120,7 +120,7 @@ class KeyLabSessionTest {
             assertEquals(sweep.candidateAt(index), session.state.value.candidate)
         }
 
-        assertEquals("Sweep 16 of 16 · 0x0180–0x018F", session.state.value.positionLabel)
+        assertEquals("Scan 16 of 16 · 0x0180–0x018F", session.state.value.positionLabel)
         assertFalse(session.advanceSweep())
         assertFalse("the walk stops rather than wrapping", session.state.value.sweep!!.running)
         assertEquals(sweep.size - 1, session.state.value.sweep?.index)

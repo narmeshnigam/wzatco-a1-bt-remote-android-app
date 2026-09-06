@@ -97,6 +97,14 @@ object A1Type {
         letterSpacing = 0.1.em,
         color = A1Colors.Paper,
     )
+
+    /** The tiny caption under an unverified key's label — "SET UP". */
+    val KeyCaption = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontSize = 8.sp,
+        letterSpacing = 0.08.em,
+        color = A1Colors.UnverifiedLabel,
+    )
     val StatusSubLabel = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontSize = 11.sp,

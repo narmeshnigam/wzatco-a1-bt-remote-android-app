@@ -1,12 +1,9 @@
 package com.narmeshnigam.a1remote
 
-import android.Manifest
-import android.os.Build
 import android.view.WindowManager
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.rule.GrantPermissionRule
 import com.narmeshnigam.a1remote.service.HidLink
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -19,14 +16,7 @@ import org.junit.runner.RunWith
 class MainActivityTest {
 
     @get:Rule
-    val permissions: GrantPermissionRule = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        GrantPermissionRule.grant(
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_ADVERTISE,
-        )
-    } else {
-        GrantPermissionRule.grant()
-    }
+    val permissions = BluetoothPermissionsRule()
 
     @Test
     fun theScreenStaysAwakeWhileTheRemoteIsInFrontOfTheUser() {

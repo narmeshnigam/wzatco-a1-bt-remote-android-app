@@ -4,7 +4,11 @@ import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.narmeshnigam.a1remote.data.Finding
 import com.narmeshnigam.a1remote.data.Verdict
+import com.narmeshnigam.a1remote.hid.KeyLabCandidates
 import com.narmeshnigam.a1remote.hid.RemoteFunction
 import com.narmeshnigam.a1remote.hid.ReportKind
 import com.narmeshnigam.a1remote.service.SendResult
@@ -48,6 +54,9 @@ import com.narmeshnigam.a1remote.vm.KeyLabViewModel
 
 /** The name the export dialog opens with. */
 private const val EXPORT_FILE = "a1-key-lab-findings.json"
+
+/** The button-picker chips: shorter than a key, so the picker costs one compact row. */
+private val CHIP_HEIGHT = 36.dp
 
 /** The same wording as the keypad keys, so the operator is testing the key they can see. */
 private fun labelOf(function: RemoteFunction): String = when (function) {
@@ -68,12 +77,25 @@ private fun labelOf(function: RemoteFunction): String = when (function) {
  * artefact of this project that has to be trustworthy.
  */
 @Composable
-fun KeyLabScreen(modifier: Modifier = Modifier, viewModel: KeyLabViewModel = viewModel()) {
+fun KeyLabScreen(
+    modifier: Modifier = Modifier,
+    initialFunction: RemoteFunction? = null,
+    onFunctionConsumed: () -> Unit = {},
+    viewModel: KeyLabViewModel = viewModel(),
+) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val findings by viewModel.findings.collectAsStateWithLifecycle()
     val link by viewModel.link.collectAsStateWithLifecycle()
     val lastResult by viewModel.lastResult.collectAsStateWithLifecycle()
+
+    // Arriving from a "Set up" tap on the keypad: jump straight to that button.
+    LaunchedEffect(initialFunction) {
+        if (initialFunction != null) {
+            viewModel.selectFunction(initialFunction)
+            onFunctionConsumed()
+        }
+    }
 
     var exportNote by remember { mutableStateOf<String?>(null) }
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -87,17 +109,18 @@ fun KeyLabScreen(modifier: Modifier = Modifier, viewModel: KeyLabViewModel = vie
             .fillMaxSize()
             .padding(horizontal = A1Dimens.ScreenPadding)
             .padding(bottom = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Column {
-            BasicText(text = "Key Lab", style = A1Type.ScreenTitle)
+            BasicText(text = "Fix Keys", style = A1Type.ScreenTitle)
             BasicText(
-                text = "Send a candidate usage, watch the projector, then mark the result. " +
-                    "Findings export as JSON.",
+                text = "Some A1 buttons ignore the standard codes. Pick a button, send codes until " +
+                    "the projector reacts, then tap It worked.",
                 style = A1Type.Hint,
             )
         }
 
+        ButtonPicker(current = state.function, onSelect = viewModel::selectFunction)
         FunctionCard(state)
         ModeRow(state = state, connected = link.isConnected, viewModel = viewModel)
         VerdictList(findings, modifier = Modifier.weight(1f))
@@ -105,7 +128,7 @@ fun KeyLabScreen(modifier: Modifier = Modifier, viewModel: KeyLabViewModel = vie
 
         Row(horizontalArrangement = Arrangement.spacedBy(A1Dimens.Gutter), modifier = Modifier.fillMaxWidth()) {
             A1Key(
-                label = "Side effect",
+                label = "Did something else",
                 onPress = { viewModel.record(Verdict.SIDE_EFFECT) },
                 enabled = armed,
                 modifier = Modifier.weight(1f),
@@ -144,13 +167,51 @@ fun KeyLabScreen(modifier: Modifier = Modifier, viewModel: KeyLabViewModel = vie
     }
 }
 
-/** The function under test: solid hairline card, name in condensed 22 sp, position below. */
+/** The horizontal picker of buttons to fix; the selected one is filled with the accent. */
+@Composable
+private fun ButtonPicker(current: RemoteFunction, onSelect: (RemoteFunction) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(A1Dimens.Gutter),
+    ) {
+        KeyLabCandidates.FUNCTIONS.forEach { function ->
+            FixKeyChip(
+                label = labelOf(function),
+                selected = function == current,
+                onClick = { onSelect(function) },
+            )
+        }
+    }
+}
+
+/** One compact selector chip: bordered, accent-filled when picked. Shorter than a full key. */
+@Composable
+private fun FixKeyChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    Box(
+        modifier = Modifier
+            .height(CHIP_HEIGHT)
+            .background(if (selected) A1Colors.Accent else Color.Transparent, RectangleShape)
+            .border(
+                A1Dimens.Hairline,
+                if (selected) A1Colors.Accent else A1Colors.KeyBorder,
+                RectangleShape,
+            )
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicText(text = label.uppercase(), style = A1Type.KeyLabel)
+    }
+}
+
+/** The button under test: solid hairline card, name in condensed 22 sp, position below. */
 @Composable
 private fun FunctionCard(state: KeyLabState) {
     A1Panel(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             BasicText(
-                text = "Function under test · ${state.functionIndex + 1} of ${state.functionCount}".uppercase(),
+                text = "Button · ${state.functionIndex + 1} of ${state.functionCount}".uppercase(),
                 style = A1Type.StepLabel,
             )
             BasicText(text = labelOf(state.function), style = A1Type.LabTitle)

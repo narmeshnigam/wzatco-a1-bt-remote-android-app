@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +37,7 @@ import com.narmeshnigam.a1remote.ui.theme.A1Dimens
 import com.narmeshnigam.a1remote.ui.theme.A1Icons
 import com.narmeshnigam.a1remote.ui.theme.A1Type
 import com.narmeshnigam.a1remote.ui.theme.dashedBorder
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -89,7 +91,9 @@ fun StatusRow(
             }
         }
         PowerKey(
-            enabled = state.isConnected,
+            // Confirmed power needs a live link; unverified power only routes to Fix Keys, so it
+            // stays tappable with no host.
+            enabled = state.isConnected || !powerVerified,
             verified = powerVerified,
             onFire = onPower,
         )
@@ -97,8 +101,10 @@ fun StatusRow(
 }
 
 /**
- * The power key. It fires only after [POWER_HOLD_MS] of continuous hold, because a projector
- * turning itself off mid-film is not a recoverable mistake from the phone.
+ * The power key. When confirmed it fires only after [POWER_HOLD_MS] of continuous hold, because a
+ * projector turning itself off mid-film is not a recoverable mistake from the phone. While it is
+ * still unverified — no power code is known to work on the A1 — a plain tap opens Fix Keys for
+ * Power instead, so the dead key becomes the way to fix it.
  */
 @Composable
 private fun PowerKey(enabled: Boolean, verified: Boolean, onFire: () -> Unit, modifier: Modifier = Modifier) {
@@ -106,6 +112,7 @@ private fun PowerKey(enabled: Boolean, verified: Boolean, onFire: () -> Unit, mo
     val haptics = rememberHaptics()
     var armed by remember { mutableStateOf(false) }
     val tint = if (verified) A1Colors.Paper else A1Colors.UnverifiedLabel
+    val setArmed: (Boolean) -> Unit = { armed = it }
 
     Box(
         modifier = modifier
@@ -119,36 +126,13 @@ private fun PowerKey(enabled: Boolean, verified: Boolean, onFire: () -> Unit, mo
                     Modifier.dashedBorder(A1Colors.UnverifiedBorder, A1Dimens.Hairline)
                 },
             )
-            .pointerInput(enabled) {
-                if (!enabled) return@pointerInput
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    var fired = false
-                    haptics.tick()
-                    val job = scope.launch {
-                        delay(POWER_HOLD_MS)
-                        armed = true
-                        fired = true
-                        // BUILD_SPEC §5: the second tick is the only signal that the hold
-                        // completed, so it fires before the report, not after it.
-                        haptics.confirm()
-                        onFire()
-                    }
-                    try {
-                        waitForUpOrCancellation()
-                    } finally {
-                        job.cancel()
-                        if (fired) {
-                            scope.launch {
-                                delay(POWER_HOLD_MS / 4)
-                                armed = false
-                            }
-                        } else {
-                            armed = false
-                        }
-                    }
-                }
-            },
+            .then(
+                if (verified) {
+                    Modifier.powerHold(enabled, scope, haptics, setArmed, onFire)
+                } else {
+                    Modifier.powerTap(enabled, haptics, setArmed, onFire)
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Image(
@@ -158,6 +142,65 @@ private fun PowerKey(enabled: Boolean, verified: Boolean, onFire: () -> Unit, mo
             colorFilter = ColorFilter.tint(tint),
         )
     }
+}
+
+/** The confirmed power gesture: a deliberate 600 ms hold, with a second haptic tick as it fires. */
+private fun Modifier.powerHold(
+    enabled: Boolean,
+    scope: CoroutineScope,
+    haptics: Haptics,
+    setArmed: (Boolean) -> Unit,
+    onFire: () -> Unit,
+): Modifier = pointerInput(enabled) {
+    if (!enabled) return@pointerInput
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        var fired = false
+        haptics.tick()
+        val job = scope.launch {
+            delay(POWER_HOLD_MS)
+            setArmed(true)
+            fired = true
+            // BUILD_SPEC §5: the second tick is the only signal that the hold completed, so it
+            // fires before the report, not after it.
+            haptics.confirm()
+            onFire()
+        }
+        try {
+            waitForUpOrCancellation()
+        } finally {
+            job.cancel()
+            if (fired) {
+                scope.launch {
+                    delay(POWER_HOLD_MS / 4)
+                    setArmed(false)
+                }
+            } else {
+                setArmed(false)
+            }
+        }
+    }
+}
+
+/** The unverified power gesture: a plain tap that routes to Fix Keys, never a power-off. */
+private fun Modifier.powerTap(
+    enabled: Boolean,
+    haptics: Haptics,
+    setArmed: (Boolean) -> Unit,
+    onFire: () -> Unit,
+): Modifier = pointerInput(enabled) {
+    if (!enabled) return@pointerInput
+    detectTapGestures(
+        onPress = {
+            setArmed(true)
+            tryAwaitRelease()
+            setArmed(false)
+        },
+        onTap = {
+            haptics.tick()
+            onFire()
+        },
+    )
 }
 
 private fun linkLabel(state: LinkState): String = when (state.stage) {
