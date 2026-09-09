@@ -47,12 +47,12 @@ Roboto Condensed (or the platform condensed face) for headings and the OK glyph;
 ## Keypad layout, top to bottom
 
 1. **Status row** — link dot (9 dp), host name over link state; power key at the right.
-2. **D-pad dial** — a ring of four arrow segments around an accent-filled OK hub. Hairline outlines; the pressed segment fills with `#416180`. The ring is **one touch surface resolved by angle**, not four curved buttons: anywhere on the upper arc is Up, so the thumb never has to find a target it cannot see. The square corners the circle leaves over stay empty.
+2. **D-pad dial** — 28 dp clear of the block below it, so the break between the two reads as a break and not as another gutter. A ring of four arrow segments around an accent-filled OK hub. Hairline outlines; the pressed segment fills with `#416180`. The ring is **one touch surface resolved by angle**, not four curved buttons: anywhere on the upper arc is Up, so the thumb never has to find a target it cannot see. The square corners the circle leaves over stay empty.
 3. **Lower block** — 130 dp (two key heights and the gutter between them), three equal columns of two rows:
 
    | | | |
    | --- | --- | --- |
-   | **Vol +** | Back | Home |
+   | **Vol +** | Home | Back |
    | **Vol −** | Menu | Mute |
 
    The volume column is **one key the height of two**: a single outline spanning both rows with a hairline divider across it, Vol + above and Vol − below. Nothing else on the block is that shape, which is what lets a thumb find it without looking. The other four are ordinary key-height cells.

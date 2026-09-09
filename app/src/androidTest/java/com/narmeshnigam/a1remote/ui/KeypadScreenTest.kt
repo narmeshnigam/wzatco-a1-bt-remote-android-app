@@ -27,9 +27,9 @@ private val FUNCTION_KEYS = linkedMapOf(
     "Right" to RemoteFunction.RIGHT,
     "Down" to RemoteFunction.DOWN,
     "Vol +" to RemoteFunction.VOLUME_UP,
-    "Vol −" to RemoteFunction.VOLUME_DOWN,
-    "Back" to RemoteFunction.BACK,
     "Home" to RemoteFunction.HOME,
+    "Back" to RemoteFunction.BACK,
+    "Vol −" to RemoteFunction.VOLUME_DOWN,
     "Menu" to RemoteFunction.MENU,
     "Mute" to RemoteFunction.MUTE,
 )

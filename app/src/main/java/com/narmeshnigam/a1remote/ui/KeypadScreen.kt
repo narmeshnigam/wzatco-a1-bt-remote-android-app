@@ -70,6 +70,14 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
 
+/**
+ * The gap between the dial and the block of keys under it.
+ *
+ * Wider than the 6 dp gutter inside the block on purpose: it is what separates the two things
+ * a thumb is choosing between, so it has to be felt as a break rather than as another gutter.
+ */
+private val DIAL_GAP = 28.dp
+
 /** The OK hub's radius as a share of the dial's own radius. */
 private const val HUB_RADIUS_FRACTION = 0.40f
 
@@ -134,7 +142,7 @@ fun KeypadScreen(
             .padding(bottom = 4.dp),
         // Centred rather than top-aligned: the dial is capped at its spec diameter, so on a tall
         // phone the spare height belongs above and below the pad, not under it.
-        verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(DIAL_GAP, Alignment.CenterVertically),
     ) {
         DPadDial(
             bindings = bindings,
@@ -160,11 +168,11 @@ fun KeypadScreen(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
             )
             KeyColumn {
-                FunctionKey(RemoteFunction.BACK, "Back", A1Icons.Back, bindings, connected, onPress)
+                FunctionKey(RemoteFunction.HOME, "Home", A1Icons.Home, bindings, connected, onPress)
                 FunctionKey(RemoteFunction.MENU, "Menu", A1Icons.Menu, bindings, connected, onPress)
             }
             KeyColumn {
-                FunctionKey(RemoteFunction.HOME, "Home", A1Icons.Home, bindings, connected, onPress)
+                FunctionKey(RemoteFunction.BACK, "Back", A1Icons.Back, bindings, connected, onPress)
                 FunctionKey(RemoteFunction.MUTE, "Mute", A1Icons.Mute, bindings, connected, onPress)
             }
         }
