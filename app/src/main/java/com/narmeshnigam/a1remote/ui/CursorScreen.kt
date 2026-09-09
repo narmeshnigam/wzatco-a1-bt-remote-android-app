@@ -38,9 +38,6 @@ import com.narmeshnigam.a1remote.ui.theme.A1Dimens
 import com.narmeshnigam.a1remote.ui.theme.A1Type
 import com.narmeshnigam.a1remote.vm.CursorViewModel
 
-/** DESIGN_SPEC: a disabled surface sits at 45 % opacity and does not react. */
-private const val DISABLED_ALPHA = 0.45f
-
 /** The hint line wraps to roughly two lines at this width. */
 private val HINT_WIDTH = 250.dp
 

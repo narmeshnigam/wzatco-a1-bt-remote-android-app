@@ -38,15 +38,22 @@ answered. In particular:
   rests on it).
 - Whether the A1 will pair with an input device rather than only with audio devices (7).
 - Whether the A1 acts on mouse reports at all (9).
-- What Focus ±, Source, Screen flip and Keystone actually are (4, 12, 13).
+- What Focus ±, Source, Screen flip and Keystone actually are (4, 12, 13). They are no longer
+  keys in the app — nothing it could send moved them — but the question is not closed.
 
 ### What deliberately does not work yet
 
-- **Screen flip** and **Keystone** transmit nothing. They have no mapping, and a nearby
-  function would be worse than none. They are drawn dashed and stay that way until Key Lab
-  finds them on real hardware.
-- **Focus ±**, **Source** and **Power** ship with a guess as their first Key Lab candidate.
-  They are drawn dashed too. A dashed key is the app saying it has not proved this.
+- **Power** ships with a guess as its first Key Lab candidate and is drawn dashed. A dashed key
+  is the app saying it has not proved this, and tapping it opens Fix Keys rather than sending a
+  report the projector ignores.
+- **Focus ±**, **Source**, **Screen flip** and **Keystone** are not on the remote. Nothing the
+  app could send moved them on the A1, so rather than four keys that do nothing they were taken
+  out. What actually drives them is still open (question 4); the route to it is ADB on the
+  projector (18) or the projector-side fallback of BUILD_SPEC §9.
+- **Typed text** has not been checked against the A1. The Keyboard tab sends US-layout keyboard
+  usages; letters and digits are safe on any Latin layout, punctuation depends on the
+  projector's own key layout (question 19). The app says so on the screen rather than promising
+  a password will arrive intact.
 - **Power-on** is not offered at all. Until question 2 is answered, the app must not present
   an affordance it cannot honour.
 

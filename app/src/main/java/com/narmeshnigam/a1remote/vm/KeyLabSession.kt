@@ -140,7 +140,12 @@ data class KeyLabState(
  * tested without a projector, a phone or a view model. Sending, promoting and persisting are
  * the view model's job; deciding what moves where is this.
  */
-class KeyLabSession(private val order: List<RemoteFunction> = KeyLabCandidates.FUNCTIONS) {
+class KeyLabSession(
+    private val order: List<RemoteFunction> = KeyLabCandidates.FUNCTIONS,
+    // Injectable so the walk stays under test while no shipped function carries a range: the
+    // machinery has to keep working for the day one does.
+    private val sweepFor: (RemoteFunction) -> KeyLabSweep? = KeyLabCandidates::sweepFor,
+) {
 
     init {
         require(order.isNotEmpty()) { "Key Lab needs at least one function under test" }
@@ -250,7 +255,7 @@ class KeyLabSession(private val order: List<RemoteFunction> = KeyLabCandidates.F
 
     private fun stateFor(functionIndex: Int): KeyLabState {
         val function = order[functionIndex]
-        val sweep = KeyLabCandidates.sweepFor(function)
+        val sweep = sweepFor(function)
         val candidates = KeyLabCandidates.listFor(function)
         return KeyLabState(
             function = function,

@@ -60,11 +60,6 @@ private val CHIP_HEIGHT = 36.dp
 
 /** The same wording as the keypad keys, so the operator is testing the key they can see. */
 private fun labelOf(function: RemoteFunction): String = when (function) {
-    RemoteFunction.FOCUS_UP -> "Focus +"
-    RemoteFunction.FOCUS_DOWN -> "Focus −"
-    RemoteFunction.SOURCE -> "Source"
-    RemoteFunction.SCREEN_FLIP -> "Screen flip"
-    RemoteFunction.KEYSTONE -> "Keystone"
     RemoteFunction.POWER -> "Power off"
     else -> function.name
 }
@@ -75,9 +70,14 @@ private fun labelOf(function: RemoteFunction): String = when (function) {
  * Every verdict key is dead while the link is down. A verdict recorded against a report that
  * never left the phone would be a fact this app made up, and the findings file is the one
  * artefact of this project that has to be trustworthy.
+ *
+ * It is opened from Setup as a diagnostic overlay rather than living in a tab: one button is
+ * still unproven on the A1, and a tool for that is not something a remote needs on screen every
+ * time it is picked up.
  */
 @Composable
 fun KeyLabScreen(
+    onClose: () -> Unit,
     modifier: Modifier = Modifier,
     initialFunction: RemoteFunction? = null,
     onFunctionConsumed: () -> Unit = {},
@@ -107,8 +107,9 @@ fun KeyLabScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(A1Colors.Field, RectangleShape)
             .padding(horizontal = A1Dimens.ScreenPadding)
-            .padding(bottom = 4.dp),
+            .padding(top = 14.dp, bottom = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Column {
@@ -164,6 +165,12 @@ fun KeyLabScreen(
                 modifier = Modifier.weight(1f).height(A1Dimens.KeyHeight),
             )
         }
+
+        A1Key(
+            label = "Close",
+            onPress = onClose,
+            modifier = Modifier.fillMaxWidth().height(A1Dimens.MinTouch),
+        )
     }
 }
 
@@ -230,12 +237,13 @@ private fun FunctionCard(state: KeyLabState) {
 private fun ModeRow(state: KeyLabState, connected: Boolean, viewModel: KeyLabViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(A1Dimens.Gutter)) {
         Row(horizontalArrangement = Arrangement.spacedBy(A1Dimens.Gutter), modifier = Modifier.fillMaxWidth()) {
-            KeyLabMode.entries.forEach { mode ->
+            // Auto-scan is only offered where a range exists to walk. No function carries one
+            // today, so the chip stays out of the row rather than sitting there permanently dead.
+            KeyLabMode.entries.filter { it != KeyLabMode.SWEEP || state.hasSweep }.forEach { mode ->
                 A1Key(
                     label = mode.label,
                     style = if (state.mode == mode) KeyStyle.PRIMARY else KeyStyle.VERIFIED,
                     onPress = { viewModel.setMode(mode) },
-                    enabled = mode != KeyLabMode.SWEEP || state.hasSweep,
                     modifier = Modifier.weight(1f),
                 )
             }

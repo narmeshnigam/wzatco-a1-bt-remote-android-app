@@ -11,19 +11,19 @@ object KeyboardUsage {
     const val UP_ARROW = 0x52
     const val ENTER = 0x28
     const val ESCAPE = 0x29
+    const val BACKSPACE = 0x2A
+    const val TAB = 0x2B
+    const val SPACE = 0x2C
     const val APPLICATION = 0x65
 }
 
 object ConsumerUsage {
     const val POWER = 0x0030
-    const val MEDIA_SELECT_TV = 0x0089
     const val MUTE = 0x00E2
     const val VOLUME_UP = 0x00E9
     const val VOLUME_DOWN = 0x00EA
     const val AC_HOME = 0x0223
     const val AC_BACK = 0x0224
-    const val ZOOM_IN = 0x022D
-    const val ZOOM_OUT = 0x022E
 }
 
 object MouseButton {

@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
@@ -17,7 +18,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            A1App(modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars))
+            // The soft keyboard is inset, not overlaid: on the Keyboard screen the Send key is
+            // the whole point of the screen, and a keyboard covering it makes the screen useless.
+            A1App(
+                modifier = Modifier
+                    .windowInsetsPadding(WindowInsets.systemBars)
+                    .imePadding(),
+            )
         }
     }
 

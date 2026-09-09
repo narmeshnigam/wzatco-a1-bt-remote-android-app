@@ -15,48 +15,29 @@ import org.junit.Test
 class KeyLabCandidatesTest {
 
     @Test
-    fun `focus up is the candidates KEY_LAB names, in order`() {
+    fun `power off is the candidates KEY_LAB names, in order`() {
         assertEquals(
             listOf(
-                KeyLabCandidate(ReportKind.CONSUMER, 0x022D, "Zoom In"),
-                KeyLabCandidate(ReportKind.KEYBOARD, 0x3E, "F5"),
-                KeyLabCandidate(ReportKind.CONSUMER, 0x0225, "AC Forward"),
-                KeyLabCandidate(ReportKind.KEYBOARD, 0x57, "Keypad +"),
-                KeyLabCandidate(ReportKind.KEYBOARD, 0x2E, "Equals"),
-                KeyLabCandidate(ReportKind.KEYBOARD, 0x4B, "Page Up"),
-                KeyLabCandidate(ReportKind.CONSUMER, 0x022F, "Zoom"),
+                KeyLabCandidate(ReportKind.CONSUMER, 0x0030, "Power"),
+                KeyLabCandidate(ReportKind.CONSUMER, 0x0032, "Sleep"),
+                KeyLabCandidate(ReportKind.KEYBOARD, 0x66, "Power"),
             ),
-            KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP),
+            KeyLabCandidates.listFor(RemoteFunction.POWER),
         )
     }
 
     @Test
-    fun `every list starts with the guess the shipped key map already carries`() {
-        listOf(
-            RemoteFunction.FOCUS_UP to ConsumerUsage.ZOOM_IN,
-            RemoteFunction.FOCUS_DOWN to ConsumerUsage.ZOOM_OUT,
-            RemoteFunction.SOURCE to ConsumerUsage.MEDIA_SELECT_TV,
-            RemoteFunction.POWER to ConsumerUsage.POWER,
-        ).forEach { (function, usage) ->
-            val first = KeyLabCandidates.listFor(function).first()
-            assertEquals(function.name, usage, first.usage)
-            assertEquals(function.name, DefaultKeyMap[function].report, first.report)
-        }
+    fun `the list starts with the guess the shipped key map already carries`() {
+        val first = KeyLabCandidates.listFor(RemoteFunction.POWER).first()
+        assertEquals(ConsumerUsage.POWER, first.usage)
+        assertEquals(DefaultKeyMap[RemoteFunction.POWER].report, first.report)
     }
 
     @Test
-    fun `the six unresolved functions are the ones under test`() {
-        assertEquals(
-            listOf(
-                RemoteFunction.FOCUS_UP,
-                RemoteFunction.FOCUS_DOWN,
-                RemoteFunction.SOURCE,
-                RemoteFunction.SCREEN_FLIP,
-                RemoteFunction.KEYSTONE,
-                RemoteFunction.POWER,
-            ),
-            KeyLabCandidates.FUNCTIONS,
-        )
+    fun `power off is the one function still under test`() {
+        // Focus ±, Source, Screen flip and Keystone were removed from the app once every code
+        // in their lists and sweeps had been walked against the A1 with no reaction.
+        assertEquals(listOf(RemoteFunction.POWER), KeyLabCandidates.FUNCTIONS)
     }
 
     @Test
@@ -66,19 +47,17 @@ class KeyLabCandidatesTest {
     }
 
     @Test
-    fun `every unresolved function except power carries a sweep`() {
-        assertEquals(KeyLabCandidates.HIGH_FUNCTION_KEY_SWEEP, KeyLabCandidates.sweepFor(RemoteFunction.SCREEN_FLIP))
-        assertEquals(KeyLabCandidates.CONSUMER_SWEEP, KeyLabCandidates.sweepFor(RemoteFunction.KEYSTONE))
-        listOf(RemoteFunction.FOCUS_UP, RemoteFunction.FOCUS_DOWN, RemoteFunction.SOURCE).forEach { function ->
-            assertEquals(function.name, KeyLabCandidates.LOW_FUNCTION_KEY_SWEEP, KeyLabCandidates.sweepFor(function))
+    fun `no function carries a sweep, power least of all`() {
+        RemoteFunction.entries.forEach { function ->
+            assertNull(function.name, KeyLabCandidates.sweepFor(function))
         }
-        // Power stays list-only: a sweep that walks into a working power-off mid-run would take
-        // the projector down before the operator could say which code did it.
+        // Power is the deliberate one: a sweep that walked into a working power-off mid-run
+        // would take the projector down before the operator could say which code did it.
         assertNull(KeyLabCandidates.sweepFor(RemoteFunction.POWER))
     }
 
     @Test
-    fun `the focus sweep walks F1 to F12 and touches nothing else`() {
+    fun `the low function-key sweep walks F1 to F12 and touches nothing else`() {
         val sweep = KeyLabCandidates.LOW_FUNCTION_KEY_SWEEP
         assertEquals(12, sweep.size)
         assertEquals(KeyLabCandidate(ReportKind.KEYBOARD, 0x3A, "F1"), sweep.candidateAt(0))
@@ -111,10 +90,14 @@ class KeyLabCandidatesTest {
 
     @Test
     fun `every candidate and sweep entry fits the declared descriptor ranges`() {
-        val entries = KeyLabCandidates.FUNCTIONS.flatMap { function ->
-            val sweep = KeyLabCandidates.sweepFor(function)
-            KeyLabCandidates.listFor(function) + (0 until (sweep?.size ?: 0)).map { sweep!!.candidateAt(it) }
-        }
+        val sweeps = listOf(
+            KeyLabCandidates.LOW_FUNCTION_KEY_SWEEP,
+            KeyLabCandidates.HIGH_FUNCTION_KEY_SWEEP,
+            KeyLabCandidates.CONSUMER_SWEEP,
+        )
+        val entries = KeyLabCandidates.FUNCTIONS.flatMap(KeyLabCandidates::listFor) +
+            sweeps.flatMap { sweep -> (0 until sweep.size).map(sweep::candidateAt) }
+
         assertTrue(entries.isNotEmpty())
         entries.forEach { candidate ->
             assertTrue(candidate.describe(), candidate.usage in 0..candidate.kind.usageMax)
@@ -124,8 +107,8 @@ class KeyLabCandidatesTest {
 
     @Test
     fun `a candidate describes itself the way the findings file spells it`() {
-        val candidate = KeyLabCandidate(ReportKind.CONSUMER, 0x022D, "Zoom In")
-        assertEquals("0x022D", candidate.hexUsage())
-        assertEquals("Consumer 0x022D Zoom In", candidate.describe())
+        val candidate = KeyLabCandidate(ReportKind.CONSUMER, 0x0030, "Power")
+        assertEquals("0x0030", candidate.hexUsage())
+        assertEquals("Consumer 0x0030 Power", candidate.describe())
     }
 }

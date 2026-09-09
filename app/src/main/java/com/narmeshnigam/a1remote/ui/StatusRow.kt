@@ -43,7 +43,6 @@ import kotlinx.coroutines.launch
 
 /** BUILD_SPEC §5: power needs a deliberate 600 ms hold, never a stray tap. */
 private const val POWER_HOLD_MS = 600L
-private const val DISABLED_ALPHA = 0.45f
 
 /**
  * The status row: link dot, host name over link state, power key at the right.

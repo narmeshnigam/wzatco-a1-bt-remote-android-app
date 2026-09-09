@@ -17,18 +17,18 @@ class FindingsJsonTest {
         recordedAt = "2026-09-06T21:14:00+05:30",
         results = listOf(
             Finding(
-                function = RemoteFunction.FOCUS_UP,
+                function = RemoteFunction.POWER,
                 report = ReportKind.CONSUMER,
-                usage = 0x022D,
-                usageName = "Zoom In",
+                usage = 0x0030,
+                usageName = "Power",
                 verdict = Verdict.MAPPED,
-                note = "focus stepped in one increment per press",
+                note = "the lamp went out and the fan ran on",
             ),
             Finding(
-                function = RemoteFunction.SCREEN_FLIP,
+                function = RemoteFunction.POWER,
                 report = ReportKind.KEYBOARD,
-                usage = 0x3C,
-                usageName = "F3",
+                usage = 0x66,
+                usageName = "Power",
                 verdict = Verdict.NO_EFFECT,
                 note = null,
             ),
@@ -55,13 +55,13 @@ class FindingsJsonTest {
             "\"host\": \"WZATCO A1\"",
             "\"recorded_at\": \"2026-09-06T21:14:00+05:30\"",
             "\"results\"",
-            "\"function\": \"FOCUS_UP\"",
+            "\"function\": \"POWER\"",
             "\"report\": \"consumer\"",
-            "\"usage\": \"0x022D\"",
-            "\"usage_name\": \"Zoom In\"",
+            "\"usage\": \"0x0030\"",
+            "\"usage_name\": \"Power\"",
             "\"verdict\": \"mapped\"",
             "\"note\": null",
-            "\"usage\": \"0x3C\"",
+            "\"usage\": \"0x66\"",
             "\"verdict\": \"no_effect\"",
         ).forEach { fragment -> assertTrue(fragment, json.contains(fragment)) }
     }
@@ -73,7 +73,7 @@ class FindingsJsonTest {
         assertEquals("WZATCO A1", decoded.host)
         assertEquals(2, decoded.results.size)
         assertEquals(Verdict.MAPPED, decoded.results[0].verdict)
-        assertEquals(0x022D, decoded.results[0].usage)
+        assertEquals(0x0030, decoded.results[0].usage)
         assertEquals(ReportKind.KEYBOARD, decoded.results[1].report)
         assertNull(decoded.results[1].note)
     }
@@ -81,15 +81,16 @@ class FindingsJsonTest {
     @Test
     fun `all four verdicts round trip`() {
         val results = Verdict.entries.map { verdict ->
-            Finding(RemoteFunction.KEYSTONE, ReportKind.KEYBOARD, 0x3B, "F2", verdict)
+            Finding(RemoteFunction.POWER, ReportKind.KEYBOARD, 0x66, "Power", verdict)
         }
         assertEquals(results, FindingsJson.decodeResults(FindingsJson.encodeResults(results)))
     }
 
     @Test
     fun `an operator's note survives quotes, newlines and backslashes`() {
-        val note = "said \"flip\"\n\tthen a back\\slash — and ünïcode"
-        val results = listOf(Finding(RemoteFunction.SOURCE, ReportKind.CONSUMER, 0x89, "TV", Verdict.SIDE_EFFECT, note))
+        val note = "said \"sleep\"\n\tthen a back\\slash — and ünïcode"
+        val results =
+            listOf(Finding(RemoteFunction.POWER, ReportKind.CONSUMER, 0x32, "Sleep", Verdict.SIDE_EFFECT, note))
         assertEquals(note, FindingsJson.decodeResults(FindingsJson.encodeResults(results)).single().note)
     }
 
@@ -102,13 +103,13 @@ class FindingsJsonTest {
     @Test(expected = JsonException::class)
     fun `an unknown verdict is refused rather than guessed`() {
         FindingsJson.decodeResults(
-            """[{"function":"KEYSTONE","report":"keyboard","usage":"0x3B","usage_name":"F2","verdict":"maybe"}]""",
+            """[{"function":"POWER","report":"keyboard","usage":"0x66","usage_name":"Power","verdict":"maybe"}]""",
         )
     }
 
     @Test(expected = JsonException::class)
     fun `a missing field is refused rather than defaulted`() {
-        FindingsJson.decodeResults("""[{"function":"KEYSTONE","report":"keyboard","usage":"0x3B"}]""")
+        FindingsJson.decodeResults("""[{"function":"POWER","report":"keyboard","usage":"0x66"}]""")
     }
 
     @Test(expected = JsonException::class)
@@ -126,18 +127,18 @@ class FindingsJsonTest {
               "recorded_at": "2026-09-06T21:14:00+05:30",
               "results": [
                 {
-                  "function": "FOCUS_UP",
+                  "function": "POWER",
                   "report": "consumer",
-                  "usage": "0x022D",
-                  "usage_name": "Zoom In",
+                  "usage": "0x0030",
+                  "usage_name": "Power",
                   "verdict": "mapped",
-                  "note": "focus stepped in one increment per press"
+                  "note": "the lamp went out and the fan ran on"
                 },
                 {
-                  "function": "SCREEN_FLIP",
+                  "function": "POWER",
                   "report": "keyboard",
-                  "usage": "0x3C",
-                  "usage_name": "F3",
+                  "usage": "0x66",
+                  "usage_name": "Power",
                   "verdict": "no_effect",
                   "note": null
                 }

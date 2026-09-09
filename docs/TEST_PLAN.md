@@ -48,13 +48,15 @@ timed pass and are marked "—" (not measured) rather than guessed. Full verbati
 | Volume − | Yes | — | — | — | — | |
 | Mute | Yes | — | — | — | — | |
 | Power off | No | — | — | — | — | No reaction, not even the key-press tone. Consumer 0x0030 not acted on. Stays unverified. |
-| Focus + | No | — | — | — | — | Key-press tone but no action. Reachable but unmapped; needs a Fix-Keys search. |
-| Focus − | No | — | — | — | — | As Focus +. |
-| Source | No | — | — | — | — | As Focus +. |
-| Screen flip | No | — | — | — | — | Nothing at all, not even the tone. Usage never reaches the projector; fallback candidate. |
-| Keystone | No | — | — | — | — | As Screen flip. |
 | Cursor move | Yes | — | — | — | — | Pointer moves on the projected image. |
 | Left click | Yes | — | — | — | — | Activates what is under the pointer. |
+| Typed text | — | — | — | — | — | Keyboard tab: focus a field on the A1, send a string, compare character for character (question 19). |
+| Backspace / Enter | — | — | — | — | — | Keyboard tab, sent on their own into a focused field. |
+
+Focus +, Focus −, Source, Screen flip and Keystone were rows in this matrix. They were removed
+from the app on 2026-09-10 because nothing it shipped for them moved the projector — Focus ±
+and Source drew the key-press tone and did nothing, Flip and Keystone drew no reaction at all.
+The finding stands in `OPEN_QUESTIONS.md` (question 4); there is no longer a key to test.
 
 Latency in milliseconds, measured by eye against a repeated press — an estimate is fine, an
 omission is not, on the timed pass. This first pass is functional only.

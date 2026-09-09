@@ -5,8 +5,9 @@ enum class A1Screen(val tabLabel: String) {
     KEYPAD("Keypad"),
     CURSOR("Trackpad"),
 
-    // "Fix Keys" is the user-facing name for what the specs call Key Lab: the tool that finds a
-    // working code for the buttons the A1 ignores.
-    KEY_LAB("Fix Keys"),
+    // Typing into a field on the projector. It took the tab Fix Keys used to hold: fixing a key
+    // is something the operator does once, typing a Wi-Fi password is something they do at the
+    // moment they need it, and only one of those earns a permanent tab.
+    TEXT("Keyboard"),
     SETUP("Setup"),
 }

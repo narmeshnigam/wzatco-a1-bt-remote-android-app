@@ -38,8 +38,8 @@ class KeyMap(private val store: KeyMapStore, scope: CoroutineScope) {
     /**
      * The report to transmit for [function], or null when nothing is mapped.
      *
-     * Null is the honest answer for screen flip and keystone until Key Lab finds them; a nearby
-     * function would be worse than nothing.
+     * Null is the honest answer for a function Key Lab has not resolved; a nearby function
+     * would be worse than nothing.
      */
     fun reportFor(function: RemoteFunction): HidReport? = get(function).report
 

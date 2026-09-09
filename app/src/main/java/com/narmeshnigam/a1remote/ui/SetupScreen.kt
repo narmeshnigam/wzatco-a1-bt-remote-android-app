@@ -67,6 +67,8 @@ fun SetupScreen(
     onTurnOffBluetooth: () -> Unit,
     onRestartBluetooth: () -> Unit,
     onRefreshDevices: () -> Unit,
+    onOpenFixKeys: () -> Unit,
+    onOpenDiagnostics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val autoStep = when {
@@ -111,6 +113,37 @@ fun SetupScreen(
 
                 else -> ConnectStep(state = state, onConnect = onConnect, onDisconnect = onDisconnect)
             }
+        }
+
+        DiagnosticsRow(onOpenFixKeys = onOpenFixKeys, onOpenDiagnostics = onOpenDiagnostics)
+    }
+}
+
+/**
+ * The two tools that are not part of the flow, kept below it on every step.
+ *
+ * Fix Keys used to be a tab. It is a workshop, not a remote control: the operator reaches for it
+ * once, when a button does nothing, and never again after. Putting it here with the wire log
+ * gives the two diagnostics one place and gives the tab back to something used every day.
+ */
+@Composable
+private fun DiagnosticsRow(onOpenFixKeys: () -> Unit, onOpenDiagnostics: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(A1Dimens.Gutter)) {
+        BasicText(text = "Diagnostics", style = A1Type.StatusSubLabel)
+        Row(
+            modifier = Modifier.fillMaxWidth().height(A1Dimens.MinTouch),
+            horizontalArrangement = Arrangement.spacedBy(A1Dimens.Gutter),
+        ) {
+            A1Key(
+                label = "Fix Keys",
+                onPress = onOpenFixKeys,
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+            )
+            A1Key(
+                label = "Wire log",
+                onPress = onOpenDiagnostics,
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+            )
         }
     }
 }

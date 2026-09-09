@@ -32,15 +32,6 @@ object A1Icons {
     val VolumeUp = strokeIcon("VolumeUp", SPEAKER, "M16 12h5", "M18.5 9.5v5")
     val Mute = strokeIcon("Mute", SPEAKER, "m17 9 4 6", "m21 9-4 6")
 
-    private const val LENS = "M11 4a7 7 0 1 0 0 14 7 7 0 1 0 0-14"
-    val FocusDown = strokeIcon("FocusDown", LENS, "m20 20-4.5-4.5", "M8 11h6")
-    val FocusUp = strokeIcon("FocusUp", LENS, "m20 20-4.5-4.5", "M8 11h6", "M11 8v6")
-
-    val Source = strokeIcon("Source", "M4 7h13l-3-3", "M20 17H7l3 3")
-    val Flip = strokeIcon("Flip", "M12 3v18", "M4 8h5v8H4z", "M15 8h5v8h-5z")
-    val Keystone = strokeIcon("Keystone", "M6 5h12l3 14H3z")
-    val Cursor = strokeIcon("Cursor", "m4 3 7 17 2-6 6-2z")
-
     private fun strokeIcon(name: String, vararg paths: String): ImageVector = ImageVector.Builder(
         name = name,
         defaultWidth = 24.dp,

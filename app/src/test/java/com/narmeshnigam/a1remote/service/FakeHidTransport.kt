@@ -3,6 +3,7 @@ package com.narmeshnigam.a1remote.service
 import com.narmeshnigam.a1remote.hid.DefaultKeyMap
 import com.narmeshnigam.a1remote.hid.HidReport
 import com.narmeshnigam.a1remote.hid.HidReports
+import com.narmeshnigam.a1remote.hid.KeyBinding
 import com.narmeshnigam.a1remote.hid.KeyPressSender
 import com.narmeshnigam.a1remote.hid.RemoteFunction
 
@@ -11,8 +12,13 @@ import com.narmeshnigam.a1remote.hid.RemoteFunction
  * them, so everything above the Bluetooth stack is testable with no projector in the room.
  *
  * @param connected when false the fake refuses exactly as the real service does on a dead link
+ * @param bindings the key map the fake resolves against — the shipped table unless a test needs
+ *   a binding the defaults no longer contain, such as one carrying no report at all
  */
-class FakeHidTransport(var connected: Boolean = true) : HidTransport {
+class FakeHidTransport(
+    var connected: Boolean = true,
+    private val bindings: Map<RemoteFunction, KeyBinding> = DefaultKeyMap.all(),
+) : HidTransport {
 
     /** Every report the app tried to put on the wire, in order. */
     val sent = mutableListOf<HidReport>()
@@ -20,14 +26,28 @@ class FakeHidTransport(var connected: Boolean = true) : HidTransport {
     /** The wire-log labels the app attached to them. */
     val labels = mutableListOf<String>()
 
+    /**
+     * Refuse every press from this one onward, counting from zero.
+     *
+     * A run of typing has to stop at the first report the stack refuses rather than carrying on
+     * into a field that is already wrong, and that is only testable if a fake can refuse part
+     * of the way through.
+     */
+    var refusePressFrom: Int? = null
+
+    private var presses = 0
+
     override fun sendKey(function: RemoteFunction): SendResult {
-        val binding = DefaultKeyMap[function]
+        val binding = bindings.getValue(function)
         val report = binding.report ?: return SendResult.UNMAPPED
         return sendPress(report, "${function.name} ${binding.usageName}")
     }
 
     override fun sendPress(report: HidReport, label: String): SendResult {
         if (!connected) return SendResult.NOT_CONNECTED
+        val refused = refusePressFrom?.let { presses >= it } == true
+        presses++
+        if (refused) return SendResult.FAILED
         labels += label
         KeyPressSender { out ->
             sent += out

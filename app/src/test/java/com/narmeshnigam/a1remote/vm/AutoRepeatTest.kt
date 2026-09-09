@@ -74,7 +74,7 @@ class AutoRepeatTest {
     }
 
     @Test
-    fun `only the d-pad, volume and focus repeat`() {
+    fun `only the d-pad and volume repeat`() {
         val repeating = RemoteFunction.entries
             .filter { it.repeatBehaviour() == RepeatBehaviour.REPEATING }
             .toSet()
@@ -87,8 +87,6 @@ class AutoRepeatTest {
                 RemoteFunction.RIGHT,
                 RemoteFunction.VOLUME_UP,
                 RemoteFunction.VOLUME_DOWN,
-                RemoteFunction.FOCUS_UP,
-                RemoteFunction.FOCUS_DOWN,
             ),
             repeating,
         )

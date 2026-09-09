@@ -15,7 +15,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -27,74 +26,72 @@ class KeyLabPromotionTest {
     private val keyMap = KeyMap(keyMapStore, TestScope(UnconfinedTestDispatcher()))
     private val findings = FakeFindingsStore()
 
+    private val powerCodes = KeyLabCandidates.listFor(RemoteFunction.POWER)
+
     @Test
     fun `a hit promotes the candidate and flips the key to verified`() = runTest {
         val session = KeyLabSession()
-        session.nextCandidate() // the first guess missed; the second is F5
+        session.nextCandidate() // the first guess missed; the second is Consumer Sleep
         val candidate = session.advancePast(Verdict.MAPPED)!!
 
-        fileVerdict(RemoteFunction.FOCUS_UP, candidate, Verdict.MAPPED, keyMap, findings)
+        fileVerdict(RemoteFunction.POWER, candidate, Verdict.MAPPED, keyMap, findings)
 
-        assertTrue(keyMap.isVerified(RemoteFunction.FOCUS_UP))
-        assertEquals(candidate.report, keyMap.reportFor(RemoteFunction.FOCUS_UP))
-        assertEquals("F5", keyMap[RemoteFunction.FOCUS_UP].usageName)
-        assertEquals(KeyStatus.CONFIRMED, keyMap[RemoteFunction.FOCUS_UP].status)
+        assertTrue(keyMap.isVerified(RemoteFunction.POWER))
+        assertEquals(candidate.report, keyMap.reportFor(RemoteFunction.POWER))
+        assertEquals("Sleep", keyMap[RemoteFunction.POWER].usageName)
+        assertEquals(KeyStatus.CONFIRMED, keyMap[RemoteFunction.POWER].status)
     }
 
     @Test
     fun `a hit is filed as mapped with the usage that was actually sent`() = runTest {
-        val candidate = KeyLabCandidates.listFor(RemoteFunction.SOURCE).first()
+        val candidate = powerCodes.first()
 
-        fileVerdict(RemoteFunction.SOURCE, candidate, Verdict.MAPPED, keyMap, findings)
+        fileVerdict(RemoteFunction.POWER, candidate, Verdict.MAPPED, keyMap, findings)
 
         assertEquals(
-            listOf(
-                Finding(RemoteFunction.SOURCE, ReportKind.CONSUMER, 0x0089, "Media Select TV", Verdict.MAPPED),
-            ),
+            listOf(Finding(RemoteFunction.POWER, ReportKind.CONSUMER, 0x0030, "Power", Verdict.MAPPED)),
             findings.recorded,
         )
     }
 
     @Test
     fun `a miss is filed and changes nothing about the key map`() = runTest {
-        val candidate = KeyLabCandidates.listFor(RemoteFunction.SCREEN_FLIP).first()
+        val candidate = powerCodes.first()
 
-        fileVerdict(RemoteFunction.SCREEN_FLIP, candidate, Verdict.NO_EFFECT, keyMap, findings)
+        fileVerdict(RemoteFunction.POWER, candidate, Verdict.NO_EFFECT, keyMap, findings)
 
         assertEquals(Verdict.NO_EFFECT, findings.recorded.single().verdict)
-        assertFalse(keyMap.isVerified(RemoteFunction.SCREEN_FLIP))
-        assertNull("an unproven function stays unmapped", keyMap.reportFor(RemoteFunction.SCREEN_FLIP))
+        assertFalse(keyMap.isVerified(RemoteFunction.POWER))
+        // The shipped guess is still what the map carries — a miss proves nothing new about it.
+        assertEquals(KeyStatus.CANDIDATE, keyMap[RemoteFunction.POWER].status)
     }
 
     @Test
     fun `a side effect is kept but promotes nothing`() = runTest {
         val candidate = KeyLabCandidates.CONSUMER_SWEEP.candidateAt(3)
 
-        fileVerdict(RemoteFunction.KEYSTONE, candidate, Verdict.SIDE_EFFECT, keyMap, findings)
+        fileVerdict(RemoteFunction.POWER, candidate, Verdict.SIDE_EFFECT, keyMap, findings)
 
         assertEquals(Verdict.SIDE_EFFECT, findings.recorded.single().verdict)
         assertEquals(0x0183, findings.recorded.single().usage)
-        assertFalse(keyMap.isVerified(RemoteFunction.KEYSTONE))
-        assertNull(keyMap.reportFor(RemoteFunction.KEYSTONE))
+        assertFalse(keyMap.isVerified(RemoteFunction.POWER))
+        assertEquals(KeyStatus.CANDIDATE, keyMap[RemoteFunction.POWER].status)
     }
 
     @Test
     fun `every miss is kept, so an unreachable function has its evidence`() = runTest {
         val session = KeyLabSession()
-        session.selectFunction(RemoteFunction.FOCUS_DOWN)
-        KeyLabCandidates.listFor(RemoteFunction.FOCUS_DOWN).forEach { _ ->
+        powerCodes.forEach { _ ->
             val candidate = session.advancePast(Verdict.NO_EFFECT)!!
-            fileVerdict(RemoteFunction.FOCUS_DOWN, candidate, Verdict.NO_EFFECT, keyMap, findings)
+            fileVerdict(RemoteFunction.POWER, candidate, Verdict.NO_EFFECT, keyMap, findings)
         }
 
-        assertEquals(
-            KeyLabCandidates.listFor(RemoteFunction.FOCUS_DOWN).map { it.usage },
-            findings.recorded.map { it.usage },
-        )
-        assertFalse(keyMap.isVerified(RemoteFunction.FOCUS_DOWN))
-        // Focus now carries a sweep, so an exhausted list falls into it rather than giving up on
-        // the function: the evidence is filed and there is still range left to walk.
-        assertEquals(RemoteFunction.FOCUS_DOWN, session.state.value.function)
-        assertEquals(KeyLabMode.SWEEP, session.state.value.mode)
+        assertEquals(powerCodes.map { it.usage }, findings.recorded.map { it.usage })
+        assertFalse(keyMap.isVerified(RemoteFunction.POWER))
+        // Power carries no sweep, and it is the only function under test, so an exhausted list
+        // comes back round to the top of the same list rather than ending the pass.
+        assertEquals(RemoteFunction.POWER, session.state.value.function)
+        assertEquals(KeyLabMode.CANDIDATES, session.state.value.mode)
+        assertEquals(0, session.state.value.candidateIndex)
     }
 }

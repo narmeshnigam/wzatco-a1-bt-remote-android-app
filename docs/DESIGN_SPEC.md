@@ -1,8 +1,8 @@
 # Design spec — WZATCO A1 Remote
 
-The reference rendering is `docs/design/WZATCO A1 Remote — Prototype.dc.html`. Open it in a browser; it is interactive. This file is the authority for values.
+The reference rendering is `docs/design/WZATCO A1 Remote - Prototype.dc.html`. Open it in a browser; it is interactive. **It predates the 2026-09-10 keypad change** — it still shows the 3 × 3 D-pad block and the four rows of three — so read the keypad section below rather than the prototype for that screen. This file is the authority for values.
 
-Design system: **Industry** — square corners, hairline borders, steel accent, condensed headings. The remote screens run on the accent's deepest step so the app is usable in an unlit room.
+Design system: **Industry** — square corners (the D-pad dial excepted), hairline borders, steel accent, condensed headings. The remote screens run on the accent's deepest step so the app is usable in an unlit room.
 
 ## Palette
 
@@ -19,7 +19,7 @@ Design system: **Industry** — square corners, hairline borders, steel accent, 
 | Link live | `#94BCE3` dot | Connected |
 | Link dead | `#7A7A7D` dot | Registered, no host |
 
-No other colors. No gradients, no shadows, no rounded corners anywhere.
+No other colors. No gradients and no shadows. The D-pad dial is the one round thing in the app; every other edge is square.
 
 ## Type
 
@@ -37,28 +37,37 @@ Roboto Condensed (or the platform condensed face) for headings and the OK glyph;
 ## Metrics
 
 - Screen padding: 18 dp horizontal.
-- Key grid gutter: 6 dp. Key height: 62 dp (D-pad cells 86 dp in a 258 dp block).
+- Key grid gutter: 6 dp. Key height: 62 dp.
+- D-pad dial: 258 dp across, shrinking to the height available on a short screen and always square. The OK hub's radius is 0.40 of the dial's; each arrow owns a 90° segment of the ring, hinged on the diagonals.
 - Power key: 54 × 54 dp, top right of the status row.
-- Bottom tab bar: 58 dp tall, four equal cells, 1 dp top border, 1 dp dividers; the active tab is filled `#2C455D`. The four tabs read **Keypad · Trackpad · Fix Keys · Setup**.
+- Bottom tab bar: 58 dp tall, four equal cells, 1 dp top border, 1 dp dividers; the active tab is filled `#2C455D`. The four tabs read **Keypad · Trackpad · Keyboard · Setup**.
 - Icons: 21 dp in keys, 26 dp in the D-pad, stroke width 1.5, square line caps off (round joins).
 - **Non-keypad compaction.** The Trackpad, Fix Keys and Setup screens use an 8 dp vertical rhythm and 12 dp card padding (down from 14 dp) so the whole of each screen fits without scrolling a small contained section. The keypad's geometry below is deliberately untouched — position is the only cue a thumb has in the dark.
 
 ## Keypad layout, top to bottom
 
 1. **Status row** — link dot (9 dp), host name over link state; power key at the right.
-2. **D-pad block** — 258 dp tall, 3 × 3 grid, 6 dp gutters. Up / Left / Right / Down in the edge cells, OK in the centre filled with the accent. Corner cells empty.
-3. **Row A** — Back · Home · Menu.
-4. **Row B** — Vol − · Mute · Vol +.
-5. **Row C** — Focus − · Focus + · Source *(all unverified)*.
-6. **Row D** — Flip · Keystone *(unverified)* · Trackpad.
+2. **D-pad dial** — a ring of four arrow segments around an accent-filled OK hub. Hairline outlines; the pressed segment fills with `#416180`. The ring is **one touch surface resolved by angle**, not four curved buttons: anywhere on the upper arc is Up, so the thumb never has to find a target it cannot see. The square corners the circle leaves over stay empty.
+3. **Lower block** — 130 dp (two key heights and the gutter between them), three equal columns of two rows:
 
-Every row is three equal cells. This geometry is fixed: it is what makes the remote usable by thumb position alone. Do not add, remove or reorder keys without changing this spec first.
+   | | | |
+   | --- | --- | --- |
+   | **Vol +** | Back | Home |
+   | **Vol −** | Menu | Mute |
+
+   The volume column is **one key the height of two**: a single outline spanning both rows with a hairline divider across it, Vol + above and Vol − below. Nothing else on the block is that shape, which is what lets a thumb find it without looking. The other four are ordinary key-height cells.
+
+The dial and the block are centred as a group in the height they are given, so spare space on a tall phone falls above and below the pad rather than under it.
+
+**What is not on this screen, and why.** Focus ±, Source, Screen flip and Keystone are gone. Nothing the app shipped for them moves the A1 (`OPEN_QUESTIONS.md`, question 4), so rather than keep four keys that do nothing they were removed from the app entirely. What drives them is still an open question, not a closed one. Trackpad has no key here either — the tab bar is how that screen is reached.
+
+This geometry is fixed: it is what makes the remote usable by thumb position alone. Do not add, remove or reorder keys without changing this spec first.
 
 ## Verified vs unverified
 
 A key is drawn unverified — dashed border, accent-300 label, and a small **"SET UP"** caption under its label — until Fix Keys (Key Lab) confirms its usage on the A1. Confirmation flips it to the solid style at runtime, from the key map, with no rebuild, and the caption disappears. This is the app telling the truth about what it knows.
 
-**An unverified key is not sent — it routes.** Because none of the guessed codes for Focus ±, Source, Flip, Keystone or Power actually drive the A1 (confirmed on hardware), tapping an unverified key does not transmit a dead report; it opens **Fix Keys** with that button preselected, so the dead key becomes the way to fix it. The Power key does the same: while unverified a plain tap routes to Fix Keys (no 600 ms hold), and only once confirmed does it become the deliberate hold-to-power-off. The moment a code is confirmed, the key sends normally.
+**An unverified key is not sent — it routes.** Power is the only such key left, and no code tried on the A1 has powered it off (confirmed on hardware). Tapping an unverified key does not transmit a dead report; it opens **Fix Keys** with that button preselected, so the dead key becomes the way to fix it. The Power key does the same: while unverified a plain tap routes to Fix Keys (no 600 ms hold), and only once confirmed does it become the deliberate hold-to-power-off. The moment a code is confirmed, the key sends normally.
 
 ## States
 
@@ -73,13 +82,23 @@ A key is drawn unverified — dashed border, accent-300 label, and a small **"SE
 
 The tab reads **Trackpad**. A full-height dashed drag surface with a subtle two-line hint inside it, so it reads as a trackpad rather than an empty box. Down its right edge sits a **collapsible scroll strip**: a thin handle by default, tapped to expand into a vertical drag lane that sends wheel motion (the one thing the D-pad and the two-finger gestures cannot reach). Below the surface, one compact row of three equal keys at the minimum touch height (58 dp, not the 62 dp key height): **Left click · Double click · Back**. On the surface, a drag moves the pointer, a single tap is left click, and a two-finger tap is Back. No visible cursor on the phone — the projector owns that. Return to the keypad is via the tab bar; there is no separate return key.
 
+## Keyboard screen
+
+The tab reads **Keyboard**. It types into whatever field the projector has focused, and it is the third tab because a Wi-Fi password or a search box is a thing the user needs at the moment they need it — which is what Fix Keys, a tool used once, was not.
+
+Top to bottom: the title and a two-line hint saying to focus a field on the projector first and that nothing goes out until Send; a **draft box** 108 dp tall with a hairline border, multi-line so a password can be read whole; one line under it in accent-300 giving the character count, or naming the characters that have no key; a row of three keys at the minimum touch height (58 dp) — **Backspace · Space · Enter** — which go straight to the projector rather than into the box, with a line under them saying so; then the status line and the action row: **Clear** and **Send text** (primary, double width). While a run is in flight, Send becomes **Stop** and the status line counts `Typing 7 of 12…`.
+
+**Nothing is transmitted as it is typed.** The draft is written, read back on a screen in the hand rather than across the room, then sent as one run of keystrokes. **A draft with any character this keyboard has no key for cannot be sent at all** — not the typable part of it — because half a password in a field is worse than none: the user cannot see which half arrived. The box turns off autocorrect and auto-capitalisation; a phone silently "correcting" a password would type it into the projector wrong with nothing on screen to say so.
+
 ## Key Lab screen — user-facing name **“Fix Keys”**
 
-The tab and title read **Fix Keys**: the operator is fixing the buttons the A1 ignores, and "Key Lab" meant nothing to a real user. The intro says so in one plain sentence. The internal names (`KeyLabScreen`, `KeyLabViewModel`, KEY_LAB.md) keep the old word; only the user-facing strings change.
+**Not a tab.** Fix Keys is opened from **Setup → Diagnostics**, and from a tap on an unverified key, as a full-screen overlay with a **Close** key at its foot. It is a workshop, not a remote control: it is reached when a button does nothing, and a remote should not carry a permanent tab for that.
 
-A **button picker** runs across the top — a horizontally scrollable row of compact chips, one per function under test (the six of KEY_LAB.md), the selected one filled with the accent — so the operator can jump straight to the button that needs fixing instead of only advancing by recording verdicts.
+The title reads **Fix Keys**: the operator is fixing the buttons the A1 ignores, and "Key Lab" meant nothing to a real user. The intro says so in one plain sentence. The internal names (`KeyLabScreen`, `KeyLabViewModel`, KEY_LAB.md) keep the old word; only the user-facing strings change.
 
-Below it, the button-under-test card (solid hairline border): button name in condensed 22 sp, code index and usage in accent-300 below. The three modes read **Suggested · Type code · Auto-scan** (was Candidates · Manual · Sweep). Verdict list in a dashed-border box, newest last, function · usage on the left and verdict on the right. Action keys at the bottom: **Send** filled accent, *It worked* and *No effect* outlined; a secondary row carries *Did something else* (a side effect) and *Export JSON*.
+A **button picker** runs across the top — a horizontally scrollable row of compact chips, one per function under test, the selected one filled with the accent — so the operator can jump straight to the button that needs fixing instead of only advancing by recording verdicts. Power off is the only function left under test, so today the picker holds one chip.
+
+Below it, the button-under-test card (solid hairline border): button name in condensed 22 sp, code index and usage in accent-300 below. The modes read **Suggested · Type code · Auto-scan** (was Candidates · Manual · Sweep). Auto-scan appears only for a function with a range to walk; no shipped function has one — KEY_LAB.md refuses Power a sweep on purpose — so the chip is currently absent rather than present and dead. Verdict list in a dashed-border box, newest last, function · usage on the left and verdict on the right. Action keys at the bottom: **Send** filled accent, *It worked* and *No effect* outlined; a secondary row carries *Did something else* (a side effect) and *Export JSON*.
 
 ## Setup screen
 
@@ -88,6 +107,8 @@ A three-step flow, shown one step at a time under a **stepper header** of three 
 - **Register** — the registration status card, plus the phone's own **Bluetooth controls**: a live `PHONE BLUETOOTH · ON/OFF` dot and three keys, **On · Off · Restart**. Restart cycles the radio off and on — the surest fix for a stuck registration. On this phone the OS refuses the direct toggle and the system Bluetooth screen opens instead (question 16, answered); once the radio is back the app registers again by itself. A refused registration says so in the status card and points at Restart. The Register primary action sits at the bottom, enabled only when Bluetooth is on.
 - **Pair** — the pairing instruction, a **Make discoverable** and a **Refresh** key (refresh re-reads the bond list by hand), then the paired-device list, tap-to-connect, capped at four rows before it scrolls.
 - **Connect** — the connection status (and the auto-connect note: the app reaches for the last connected device on start), the dashed standby-test unknown, and the **Connect to A1 / Disconnect** primary.
+
+Below the step, on every step, a **Diagnostics** row of two keys at the minimum touch height: **Fix Keys** and **Wire log**. Both open as full-screen overlays with a Close key. The wire log is still reachable by long-pressing the status row; this makes it findable without knowing that.
 
 The app remembers the last host it actually connected to and reaches for it automatically the next time it starts.
 

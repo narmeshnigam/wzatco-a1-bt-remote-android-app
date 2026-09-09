@@ -15,11 +15,8 @@
 | Mute | Consumer | `0x00E2` | Confirmed |
 | Cursor move / click | Mouse | relative X/Y, button 1 | Confirmed |
 | Power off | Consumer | `0x0030` Power | Candidate |
-| Focus + | Consumer | `0x022D` Zoom In | Candidate |
-| Focus − | Consumer | `0x022E` Zoom Out | Candidate |
-| Source | Consumer | `0x0089` Media Select TV | Candidate |
-| Screen flip | unknown | to be discovered | Unmapped |
-| Keystone | unknown | to be discovered | Unmapped |
+
+**Removed 2026-09-10.** Focus +/−, Source, Screen flip and Keystone were rows in this table. Nothing the app shipped for them drives the A1 — Focus ± and Source draw the projector's key tone and move nothing, Flip and Keystone produce no reaction at all (question 4) — and the operator chose to take them off the remote rather than keep four keys that do nothing. Their candidate lists stay printed below as the record of what was on the table; most of those codes were never tried on hardware, and what drives these functions is still an open question. If the projector-side route of BUILD_SPEC §9 opens, this is where to start again.
 
 ## Why Key Lab exists
 
@@ -32,9 +29,17 @@ The A1's projector-specific keys cannot be guessed from a desk. They may be stan
 3. The operator marks **It worked** or **No effect**. A hit promotes that candidate into the key map immediately and advances to the next function; a miss advances to the next candidate.
 4. Findings persist across restarts and export as JSON.
 
-Also required: a **manual mode** where the operator types any usage code by hand, and a **sweep mode** that walks a range with a 700 ms gap and a visible index, so the operator can call out where the projector reacted.
+Also required: a **manual mode** where the operator types any usage code by hand, and a **sweep mode** that walks a range with a 700 ms gap and a visible index, so the operator can call out where the projector reacted. Sweep mode is offered only for a function that has a range; none does today, so the mode is hidden rather than shown dead.
 
 ## Candidate lists
+
+Power off is the one function Key Lab still ships.
+
+| Function | Candidates, in order |
+| --- | --- |
+| Power off | Consumer `0x0030` Power · Consumer `0x0032` Sleep · Keyboard `0x66` Power (no sweep: a sweep that walked into a working power-off would take the projector down before the operator could say which code did it) |
+
+### Withdrawn 2026-09-10 — kept as the record of what was on the table
 
 | Function | Candidates, in order |
 | --- | --- |
@@ -43,9 +48,10 @@ Also required: a **manual mode** where the operator types any usage code by hand
 | Source | Consumer `0x0089` Media Select TV · Keyboard `0x3D` F4 · Consumer `0x009C` Channel Increment · Consumer `0x009D` Channel Decrement · swept keyboard range `0x3A`–`0x45` (F1–F12) |
 | Screen flip | Keyboard `0x3C` F3 · Keyboard `0x3A` F1 · swept keyboard range `0x68`–`0x73` (F13–F24) |
 | Keystone | Keyboard `0x3B` F2 · Keyboard `0x40` F7 · swept consumer range `0x0180`–`0x018F` |
-| Power off | Consumer `0x0030` Power · Consumer `0x0032` Sleep · Keyboard `0x66` Power (no sweep: a sweep that walked into a working power-off would take the projector down before the operator could say which code did it) |
 
-Two corrections to this table, 2026-09-06:
+The three swept ranges — `0x3A`–`0x45`, `0x68`–`0x73` and consumer `0x0180`–`0x018F` — are still defined in the app, and the walk that steps them is still tested. No function is attached to one today, so the **Auto-scan** mode does not appear on screen; attaching a range to a new function is a one-line change.
+
+Two corrections to the withdrawn table, made 2026-09-06 while it was still live:
 
 - It previously called Consumer `0x009D` "Channel +". In the HID usage tables `0x009C` is Channel Increment and `0x009D` is Channel Decrement, so the name was wrong for the code. Both are now listed under their real names.
 - Focus ± and Source gained the F1–F12 sweep. The shipped Focus + usage draws a key tone from the A1 but moves nothing, which means the usage arrives and no handler wants it; a vendor function bound to a plain function key is the next thing worth walking, and F1–F12 is inert on Android otherwise, so the sweep cannot type, navigate or switch anything off while it runs.
@@ -57,12 +63,12 @@ Walking usages from the phone only ever shows what the projector does *not* answ
 ```bash
 adb connect <projector-ip>:5555
 adb shell ls /system/usr/keylayout/          # vendor .kl files
-adb shell cat /system/usr/keylayout/Generic.kl | grep -i "zoom\|focus"
+adb shell cat /system/usr/keylayout/Generic.kl | grep -i "power\|zoom\|focus"
 adb shell getevent -lp                       # input devices, including the phone once connected
-adb shell getevent -l                        # then press Focus + on the phone and read the event
+adb shell getevent -l                        # then press a key on the phone and read the event
 ```
 
-`getevent -l` while the phone sends Focus + is the decisive test: it shows the exact Linux key code the A1 receives, or shows nothing, and that settles whether the function is reachable over HID at all.
+`getevent -l` while the phone sends a usage is the decisive test: it shows the exact Linux key code the A1 receives, or shows nothing, and that settles whether the function is reachable over HID at all. It is the only route left for Focus, Source, Flip and Keystone, and the fastest one for Power.
 
 ## Findings JSON
 
@@ -74,18 +80,18 @@ adb shell getevent -l                        # then press Focus + on the phone a
   "recorded_at": "2026-09-06T21:14:00+05:30",
   "results": [
     {
-      "function": "FOCUS_UP",
+      "function": "POWER",
       "report": "consumer",
-      "usage": "0x022D",
-      "usage_name": "Zoom In",
+      "usage": "0x0030",
+      "usage_name": "Power",
       "verdict": "mapped",
-      "note": "focus stepped in one increment per press"
+      "note": "the lamp went out and the fan ran on"
     },
     {
-      "function": "SCREEN_FLIP",
+      "function": "POWER",
       "report": "keyboard",
-      "usage": "0x3C",
-      "usage_name": "F3",
+      "usage": "0x66",
+      "usage_name": "Power",
       "verdict": "no_effect",
       "note": null
     }

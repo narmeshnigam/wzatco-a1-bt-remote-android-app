@@ -29,65 +29,73 @@ class KeyMapTest {
     }
 
     @Test
-    fun `an unmapped function returns null rather than a wrong report`() {
-        val map = keyMap()
-        assertNull(map.reportFor(RemoteFunction.SCREEN_FLIP))
-        assertNull(map.reportFor(RemoteFunction.KEYSTONE))
+    fun `an unmapped binding returns null rather than a wrong report`() {
+        // Nothing ships unmapped any more, but the state is still reachable — a stored override
+        // can carry no report — and null has to stay the answer rather than a nearby usage.
+        val store = FakeKeyMapStore(
+            mapOf(RemoteFunction.POWER to KeyBinding(null, KeyStatus.UNMAPPED, "unknown")),
+        )
+        val map = keyMap(store)
+        assertNull(map.reportFor(RemoteFunction.POWER))
+        assertFalse(map.isVerified(RemoteFunction.POWER))
     }
 
     @Test
     fun `a stored override replaces the default`() = runTest {
         val store = FakeKeyMapStore(
             mapOf(
-                RemoteFunction.FOCUS_UP to KeyBinding(HidReports.key(0x3E), KeyStatus.CONFIRMED, "F5"),
+                RemoteFunction.POWER to KeyBinding(HidReports.key(0x66), KeyStatus.CONFIRMED, "Power"),
             ),
         )
         val map = keyMap(store)
-        assertEquals(HidReports.key(0x3E), map.reportFor(RemoteFunction.FOCUS_UP))
-        assertTrue(map.isVerified(RemoteFunction.FOCUS_UP))
+        assertEquals(HidReports.key(0x66), map.reportFor(RemoteFunction.POWER))
+        assertTrue(map.isVerified(RemoteFunction.POWER))
     }
 
     @Test
     fun `a promotion reloads at runtime with no restart`() = runTest {
         val map = keyMap()
-        assertFalse(map.isVerified(RemoteFunction.SOURCE))
-        assertEquals(KeyStatus.CANDIDATE, map[RemoteFunction.SOURCE].status)
+        assertFalse(map.isVerified(RemoteFunction.POWER))
+        assertEquals(KeyStatus.CANDIDATE, map[RemoteFunction.POWER].status)
 
-        map.promote(RemoteFunction.SOURCE, HidReports.key(0x3D), "F4")
+        map.promote(RemoteFunction.POWER, HidReports.key(0x66), "Power")
 
-        assertEquals(HidReports.key(0x3D), map.reportFor(RemoteFunction.SOURCE))
-        assertEquals(KeyStatus.CONFIRMED, map[RemoteFunction.SOURCE].status)
-        assertTrue(map.isVerified(RemoteFunction.SOURCE))
+        assertEquals(HidReports.key(0x66), map.reportFor(RemoteFunction.POWER))
+        assertEquals(KeyStatus.CONFIRMED, map[RemoteFunction.POWER].status)
+        assertTrue(map.isVerified(RemoteFunction.POWER))
     }
 
     @Test
-    fun `a promotion can map a function the defaults leave unmapped`() = runTest {
-        val map = keyMap()
-        assertNull(map.reportFor(RemoteFunction.KEYSTONE))
+    fun `a promotion can map a binding that carried no report`() = runTest {
+        val store = FakeKeyMapStore(
+            mapOf(RemoteFunction.POWER to KeyBinding(null, KeyStatus.UNMAPPED, "unknown")),
+        )
+        val map = keyMap(store)
+        assertNull(map.reportFor(RemoteFunction.POWER))
 
-        map.promote(RemoteFunction.KEYSTONE, HidReports.key(0x3B), "F2")
+        map.promote(RemoteFunction.POWER, HidReports.key(0x66), "Power")
 
-        assertEquals(HidReports.key(0x3B), map.reportFor(RemoteFunction.KEYSTONE))
-        assertTrue(map.isVerified(RemoteFunction.KEYSTONE))
+        assertEquals(HidReports.key(0x66), map.reportFor(RemoteFunction.POWER))
+        assertTrue(map.isVerified(RemoteFunction.POWER))
     }
 
     @Test
     fun `reset drops the override and falls back to the shipped default`() = runTest {
         val map = keyMap()
-        map.promote(RemoteFunction.FOCUS_UP, HidReports.key(0x3E), "F5")
-        assertTrue(map.isVerified(RemoteFunction.FOCUS_UP))
+        map.promote(RemoteFunction.POWER, HidReports.key(0x66), "Power")
+        assertTrue(map.isVerified(RemoteFunction.POWER))
 
-        map.reset(RemoteFunction.FOCUS_UP)
+        map.reset(RemoteFunction.POWER)
 
-        assertEquals(DefaultKeyMap[RemoteFunction.FOCUS_UP], map[RemoteFunction.FOCUS_UP])
-        assertFalse(map.isVerified(RemoteFunction.FOCUS_UP))
+        assertEquals(DefaultKeyMap[RemoteFunction.POWER], map[RemoteFunction.POWER])
+        assertFalse(map.isVerified(RemoteFunction.POWER))
     }
 
     @Test
     fun `resetAll drops every override`() = runTest {
         val map = keyMap()
-        map.promote(RemoteFunction.FOCUS_UP, HidReports.key(0x3E), "F5")
-        map.promote(RemoteFunction.KEYSTONE, HidReports.key(0x3B), "F2")
+        map.promote(RemoteFunction.POWER, HidReports.key(0x66), "Power")
+        map.promote(RemoteFunction.MENU, HidReports.key(0x29), "Escape")
 
         map.resetAll()
 
@@ -98,7 +106,7 @@ class KeyMapTest {
     fun `every function is present in the live table at all times`() = runTest {
         val map = keyMap()
         assertEquals(RemoteFunction.entries.toSet(), map.bindings.value.keys)
-        map.promote(RemoteFunction.KEYSTONE, HidReports.key(0x3B), "F2")
+        map.promote(RemoteFunction.POWER, HidReports.key(0x66), "Power")
         assertEquals(RemoteFunction.entries.toSet(), map.bindings.value.keys)
     }
 
@@ -106,7 +114,6 @@ class KeyMapTest {
     fun `only confirmed bindings count as verified`() {
         val map = keyMap()
         assertTrue(map.isVerified(RemoteFunction.OK))
-        assertFalse(map.isVerified(RemoteFunction.POWER))
-        assertFalse(map.isVerified(RemoteFunction.SCREEN_FLIP))
+        assertFalse("power is still a guess", map.isVerified(RemoteFunction.POWER))
     }
 }

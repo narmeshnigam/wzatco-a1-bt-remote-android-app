@@ -29,10 +29,10 @@ object AutoRepeat {
 
 /** The functions that auto-repeat, per BUILD_SPEC §5. Nothing else may. */
 enum class RepeatBehaviour {
-    /** One report per press. Back, Home, Menu, Mute, OK, Source, Flip, Keystone, Power. */
+    /** One report per press. OK, Back, Home, Menu, Mute, Power. */
     SINGLE,
 
-    /** Repeats while held: the D-pad, Volume and Focus. */
+    /** Repeats while held: the D-pad and Volume. */
     REPEATING,
 }
 
@@ -49,8 +49,6 @@ fun RemoteFunction.repeatBehaviour(): RepeatBehaviour = when (this) {
     RemoteFunction.RIGHT,
     RemoteFunction.VOLUME_UP,
     RemoteFunction.VOLUME_DOWN,
-    RemoteFunction.FOCUS_UP,
-    RemoteFunction.FOCUS_DOWN,
     -> RepeatBehaviour.REPEATING
 
     RemoteFunction.OK,
@@ -59,8 +57,5 @@ fun RemoteFunction.repeatBehaviour(): RepeatBehaviour = when (this) {
     RemoteFunction.MENU,
     RemoteFunction.MUTE,
     RemoteFunction.POWER,
-    RemoteFunction.SOURCE,
-    RemoteFunction.SCREEN_FLIP,
-    RemoteFunction.KEYSTONE,
     -> RepeatBehaviour.SINGLE
 }

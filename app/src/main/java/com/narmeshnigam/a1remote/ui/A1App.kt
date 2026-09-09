@@ -100,16 +100,17 @@ private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modif
 
     var screen by rememberSaveable { mutableStateOf(A1Screen.KEYPAD) }
     var diagnosticsOpen by rememberSaveable { mutableStateOf(false) }
+    var fixKeysOpen by rememberSaveable { mutableStateOf(false) }
 
-    // Tapping a key that has no working code yet takes the user to Fix Keys for that function,
-    // rather than sending a report the A1 ignores. The pending function is applied on arrival.
+    // Tapping a key that has no working code yet opens Fix Keys on that function, rather than
+    // sending a report the A1 ignores. The pending function is applied on arrival.
     var pendingFix by remember { mutableStateOf<RemoteFunction?>(null) }
     val onKey: (RemoteFunction) -> Unit = { function ->
         if (viewModel.isVerified(function)) {
             viewModel.press(function)
         } else {
             pendingFix = function
-            screen = A1Screen.KEY_LAB
+            fixKeysOpen = true
         }
     }
 
@@ -130,15 +131,11 @@ private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modif
                         bindings = bindings,
                         connected = state.isConnected,
                         onPress = onKey,
-                        onOpenCursor = { screen = A1Screen.CURSOR },
                     )
 
                     A1Screen.CURSOR -> CursorScreen()
 
-                    A1Screen.KEY_LAB -> KeyLabScreen(
-                        initialFunction = pendingFix,
-                        onFunctionConsumed = { pendingFix = null },
-                    )
+                    A1Screen.TEXT -> KeyboardScreen()
 
                     A1Screen.SETUP -> {
                         // Pairing can happen in the system settings while this screen is away.
@@ -166,6 +163,8 @@ private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modif
                                 }
                             },
                             onRefreshDevices = viewModel::refreshBondedHosts,
+                            onOpenFixKeys = { fixKeysOpen = true },
+                            onOpenDiagnostics = { diagnosticsOpen = true },
                         )
                     }
                 }
@@ -182,6 +181,17 @@ private fun RemoteShell(notificationsDenied: Boolean, modifier: Modifier = Modif
                     .background(A1Colors.KeyBorder, RectangleShape),
             )
             A1TabBar(current = screen, onSelect = { screen = it })
+        }
+
+        if (fixKeysOpen) {
+            KeyLabScreen(
+                onClose = {
+                    fixKeysOpen = false
+                    pendingFix = null
+                },
+                initialFunction = pendingFix,
+                onFunctionConsumed = { pendingFix = null },
+            )
         }
 
         if (diagnosticsOpen) {

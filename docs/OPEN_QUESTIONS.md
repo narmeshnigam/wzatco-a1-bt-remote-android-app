@@ -22,6 +22,7 @@ Answer these from the hardware. Record the answer and the date. Do not design ar
 | 16 | On OxygenOS `DN2101_11_F.59` (Android 13), do the Setup screen's **Off** and **Restart** buttons actually toggle the radio via `BluetoothAdapter.disable()/enable()`, or does the app fall back to opening the system Bluetooth settings? | The direct calls are deprecated on API 33 and documented to return `false` for a normal app, but some OEM ROMs still honour them. The Restart button is the surest fix for a stuck registration, so whether it works in one tap or needs the settings screen matters for the flow. | **Falls back.** Tapping Restart opened the system Bluetooth settings: the ROM refused the direct `disable()`, so the radio has to be toggled there by hand. The app never pretended otherwise. | 2026-09-06 |
 | 17 | Why does `registerApp()` fail for good after the app was reinstalled, or killed while registered? | Every cold start after such an event would leave the remote dead, with nothing the app could do about it on its own. | **Observed 2026-09-06.** After an uninstall/reinstall the stack logged `unregisterAppUid(): caller UID doesn't match user UID` and refused every `registerApp()` from the new uid: it was still holding the old uid's registration, which our own `unregisterApp()` cannot clear. Only cycling Bluetooth cleared it — the app then registered and connected. The service now registers again by itself when the radio comes back, and its give-up message names this cause and the Restart fix. Whether an ordinary kill (not a reinstall) leaves the same stale state is not yet known. | 2026-09-06 |
 | 18 | Can ADB be reached on the A1 itself, over the network or a data port? | Sweeping usages from the phone only ever shows what the projector does *not* answer to. Its own key layout files say which scancode maps to which Android keycode, and `getevent` shows whether a sent usage arrives at all — the difference between "no code works" and "no code we can send works". Without it, Focus + can only be guessed at, and the A1's menus carry no focus item, so the lost remote's keys were the only route to it. | | |
+| 19 | Does the A1 type the characters the US HID layout names, especially punctuation? | The Keyboard screen sends US-layout keyboard usages. Letters and digits are the same in every Latin layout, but `0x33` is `;` only if the projector's key layout says so — on a different layout a Wi-Fi password would go in wrong with nothing on screen to show it. Until this is answered the app may not claim a password arrived intact. | | |
 
 **Until question 2 is answered, the app must not present a power-on affordance it cannot honour.**
 
@@ -40,7 +41,7 @@ Every function on the keypad was pressed by hand with the link live and the proj
 | Flip / Keystone | Nothing at all, not even the tone. | Usage does not reach the projector (question 4); fallback candidate. |
 | Cursor (trackpad, click, drag) | Works. | Confirmed (question 9). |
 
-Consequences for the app: Focus ±, Source, Flip, Keystone and Power all stay **unverified** — none of the standard usages the app currently sends drive them. Focus/Source/Power are worth a Fix-Keys usage search (they at least reach the input stack, or in Power's case are worth trying other usages); Flip/Keystone look like projector-OS-only functions that no HID usage will reach, which is what BUILD_SPEC §9's projector-side fallback exists for. The Menu double-press-for-aspect behaviour is the projector's, not the app's — nothing to change, but worth knowing when the operator expects a menu and gets an aspect flip.
+Consequences for the app: Focus ±, Source, Flip, Keystone and Power all stay **unverified** — none of the standard usages the app currently sends drive them. **Update 2026-09-10:** the first four have since been removed from the app altogether, on the operator's decision, rather than left on the keypad as keys that do nothing. That changes nothing about this question — it stays open, and the answer, if it comes, comes from question 18 or from the projector-side fallback. Focus/Source/Power are worth a Fix-Keys usage search (they at least reach the input stack, or in Power's case are worth trying other usages); Flip/Keystone look like projector-OS-only functions that no HID usage will reach, which is what BUILD_SPEC §9's projector-side fallback exists for. The Menu double-press-for-aspect behaviour is the projector's, not the app's — nothing to change, but worth knowing when the operator expects a menu and gets an aspect flip.
 
 **The A1's own menus have no focus item (operator, 2026-09-06).** The projector's on-screen settings were searched and carry no manual focus adjustment and no autofocus trigger — focus was only ever driven by the lost remote's dedicated keys. That closes the one workaround that needed no new hardware fact: driving focus through the OSD with the D-pad, which already works. The key binding is therefore the only route to focus, and whether any binding is reachable over Bluetooth HID is question 18.
 
@@ -65,6 +66,16 @@ Both are about whether a silent sweep means anything, so answer them before runn
 **12.** With the projector on any screen that shows a text field, in Key Lab manual mode choose `keyboard` and send `04` (the letter A) to prove the keyboard collection reaches the host at all. Then send `3A` (F1) and `68` (F13) and watch for anything — a focus move, a toast, a beep. If A types and F13 does nothing, F13–F24 are being dropped somewhere above the wire, and the screen-flip sweep result is a fact about Android rather than about the A1.
 
 Record both answers here before filing a findings file that leans on them.
+
+## How to answer 19
+
+With the projector on any screen with a text field — its Wi-Fi password box will do — put the cursor in the field with the Trackpad or the D-pad, open the **Keyboard** tab, and send this exact string:
+
+```
+Aa1 -_=+[]\;':",.<>/?`~!@#$%^&*()
+```
+
+Read what the projector shows against what was sent, character for character, and record any that differ here. Letters and digits are expected to be safe; if any punctuation differs, that character is the projector's layout disagreeing with the US table, and `TextTyping` needs an entry for this host rather than a guess.
 
 ## How to answer 16
 

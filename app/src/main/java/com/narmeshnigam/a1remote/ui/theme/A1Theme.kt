@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.sp
 
 /**
  * The palette of DESIGN_SPEC. These ten values are the whole palette — there are no others,
- * no gradients, no shadows and no rounded corners anywhere in this app.
+ * no gradients and no shadows. The D-pad dial is the one round thing in the app.
  */
 object A1Colors {
     /** Every remote screen background. */
@@ -57,8 +57,9 @@ object A1Dimens {
     val ScreenPadding = 18.dp
     val Gutter = 6.dp
     val KeyHeight = 62.dp
+
+    /** The D-pad dial's diameter. */
     val DpadBlock = 258.dp
-    val DpadCell = 86.dp
     val PowerKey = 54.dp
     val TabBar = 58.dp
 

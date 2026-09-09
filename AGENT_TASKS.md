@@ -25,7 +25,7 @@ Five gates. Each has an exit test that must pass before the next begins. Report 
 
 ## Gate 3 — Make it usable in the dark
 
-- [ ] Auto-repeat: 400 ms delay then 90 ms interval on D-pad, Volume, Focus.
+- [ ] Auto-repeat: 400 ms delay then 90 ms interval on D-pad and Volume.
 - [ ] Haptics on key-down (12 ms); power requires a 600 ms long-press with a double tick.
 - [ ] Guaranteed key-up on finger-leave, gesture cancel and composable disposal.
 - [ ] Cursor screen: relative mouse deltas at 1.6× acceleration, tap = left click, two-finger tap = Back.

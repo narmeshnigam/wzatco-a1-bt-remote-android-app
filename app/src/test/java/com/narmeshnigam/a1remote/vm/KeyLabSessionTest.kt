@@ -2,6 +2,7 @@ package com.narmeshnigam.a1remote.vm
 
 import com.narmeshnigam.a1remote.data.Verdict
 import com.narmeshnigam.a1remote.hid.KeyLabCandidates
+import com.narmeshnigam.a1remote.hid.KeyLabSweep
 import com.narmeshnigam.a1remote.hid.RemoteFunction
 import com.narmeshnigam.a1remote.hid.ReportKind
 import org.junit.Assert.assertEquals
@@ -14,17 +15,37 @@ import org.junit.Test
 /** The Key Lab protocol of KEY_LAB.md, without a projector. */
 class KeyLabSessionTest {
 
+    /**
+     * A second function to move on to.
+     *
+     * Power off is the only function Key Lab still ships, so the tests that are about moving
+     * *between* functions supply their own order. Menu is a confirmed function with no
+     * candidates of its own, which is exactly the shape the pass has to survive.
+     */
+    private val second = RemoteFunction.MENU
+
+    private val powerCodes = KeyLabCandidates.listFor(RemoteFunction.POWER)
+
     private fun session() = KeyLabSession()
+
+    private fun pair() = KeyLabSession(listOf(RemoteFunction.POWER, second))
+
+    /** No shipped function carries a sweep, so a test that is about sweeping supplies one. */
+    private fun swept(
+        order: List<RemoteFunction> = listOf(RemoteFunction.POWER),
+        swept: RemoteFunction = RemoteFunction.POWER,
+        sweep: KeyLabSweep = KeyLabCandidates.CONSUMER_SWEEP,
+    ) = KeyLabSession(order) { function -> sweep.takeIf { function == swept } }
 
     @Test
     fun `the pass opens on the first function and its first candidate`() {
         val state = session().state.value
-        assertEquals(RemoteFunction.FOCUS_UP, state.function)
+        assertEquals(RemoteFunction.POWER, state.function)
         assertEquals(0, state.functionIndex)
         assertEquals(KeyLabCandidates.FUNCTIONS.size, state.functionCount)
         assertEquals(KeyLabMode.CANDIDATES, state.mode)
-        assertEquals(KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP).first(), state.candidate)
-        assertEquals("Code 1 of ${KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP).size}", state.positionLabel)
+        assertEquals(powerCodes.first(), state.candidate)
+        assertEquals("Code 1 of ${powerCodes.size}", state.positionLabel)
     }
 
     @Test
@@ -33,46 +54,53 @@ class KeyLabSessionTest {
         session.nextCandidate()
 
         val state = session.state.value
-        assertEquals(RemoteFunction.FOCUS_UP, state.function)
+        assertEquals(RemoteFunction.POWER, state.function)
         assertEquals(1, state.candidateIndex)
-        assertEquals(KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP)[1], state.candidate)
-        assertEquals("Code 2 of ${KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP).size}", state.positionLabel)
+        assertEquals(powerCodes[1], state.candidate)
+        assertEquals("Code 2 of ${powerCodes.size}", state.positionLabel)
     }
 
     @Test
     fun `an exhausted list advances to the next function when there is no sweep to fall into`() {
-        val session = session()
-        // Power is the one function KEY_LAB gives no sweep, and it is last, so the pass wraps.
-        session.selectFunction(RemoteFunction.POWER)
-        repeat(KeyLabCandidates.listFor(RemoteFunction.POWER).size) { session.nextCandidate() }
+        val session = pair()
+        repeat(powerCodes.size) { session.nextCandidate() }
 
         val state = session.state.value
-        assertEquals(RemoteFunction.FOCUS_UP, state.function)
-        assertEquals(0, state.functionIndex)
+        assertEquals(second, state.function)
+        assertEquals(1, state.functionIndex)
         assertEquals(0, state.candidateIndex)
         assertEquals(KeyLabMode.CANDIDATES, state.mode)
     }
 
     @Test
-    fun `an exhausted focus list falls into the F1-F12 sweep rather than leaving the function`() {
-        val session = session()
-        repeat(KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP).size) { session.nextCandidate() }
+    fun `an exhausted list falls into the function's sweep rather than leaving the function`() {
+        val session = swept()
+        repeat(powerCodes.size) { session.nextCandidate() }
 
         val state = session.state.value
-        assertEquals(RemoteFunction.FOCUS_UP, state.function)
+        assertEquals(RemoteFunction.POWER, state.function)
         assertEquals(KeyLabMode.SWEEP, state.mode)
-        assertEquals(KeyLabCandidates.LOW_FUNCTION_KEY_SWEEP.candidateAt(0), state.candidate)
+        assertEquals(KeyLabCandidates.CONSUMER_SWEEP.candidateAt(0), state.candidate)
+    }
+
+    @Test
+    fun `a function with no candidates but a range opens straight into the scan`() {
+        val session = swept(order = listOf(second), swept = second)
+
+        val state = session.state.value
+        assertEquals(KeyLabMode.SWEEP, state.mode)
+        assertEquals(KeyLabCandidates.CONSUMER_SWEEP.candidateAt(0), state.candidate)
     }
 
     @Test
     fun `a hit advances to the next function whatever candidate it was on`() {
-        val session = session()
+        val session = pair()
         session.nextCandidate()
 
         val hit = session.advancePast(Verdict.MAPPED)
 
-        assertEquals(KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP)[1], hit)
-        assertEquals(RemoteFunction.FOCUS_DOWN, session.state.value.function)
+        assertEquals(powerCodes[1], hit)
+        assertEquals(second, session.state.value.function)
         assertEquals(0, session.state.value.candidateIndex)
     }
 
@@ -82,47 +110,43 @@ class KeyLabSessionTest {
 
         val tried = session.advancePast(Verdict.SIDE_EFFECT)
 
-        assertEquals(KeyLabCandidates.listFor(RemoteFunction.FOCUS_UP).first(), tried)
-        assertEquals(RemoteFunction.FOCUS_UP, session.state.value.function)
+        assertEquals(powerCodes.first(), tried)
+        assertEquals(RemoteFunction.POWER, session.state.value.function)
         assertEquals(1, session.state.value.candidateIndex)
     }
 
     @Test
     fun `the pass wraps at the last function`() {
-        val session = session()
-        session.selectFunction(KeyLabCandidates.FUNCTIONS.last())
+        val session = pair()
+        session.selectFunction(second)
 
         session.nextFunction()
-
-        assertEquals(KeyLabCandidates.FUNCTIONS.first(), session.state.value.function)
-    }
-
-    @Test
-    fun `an exhausted list falls into the function's sweep before moving on`() {
-        val session = session()
-        session.selectFunction(RemoteFunction.SCREEN_FLIP)
-        repeat(KeyLabCandidates.listFor(RemoteFunction.SCREEN_FLIP).size) { session.nextCandidate() }
-
-        val state = session.state.value
-        assertEquals(RemoteFunction.SCREEN_FLIP, state.function)
-        assertEquals(KeyLabMode.SWEEP, state.mode)
-        assertEquals(KeyLabCandidates.HIGH_FUNCTION_KEY_SWEEP.candidateAt(0), state.candidate)
-    }
-
-    @Test
-    fun `an exhausted sweep moves to the next function`() {
-        val session = session()
-        session.selectFunction(RemoteFunction.KEYSTONE)
-        session.setMode(KeyLabMode.SWEEP)
-        repeat(KeyLabCandidates.CONSUMER_SWEEP.size) { session.nextCandidate() }
 
         assertEquals(RemoteFunction.POWER, session.state.value.function)
     }
 
     @Test
-    fun `a sweep walks its range by index and stops at the top`() {
+    fun `a single-function pass wraps onto itself, ready for a second run`() {
         val session = session()
-        session.selectFunction(RemoteFunction.KEYSTONE)
+        repeat(powerCodes.size) { session.nextCandidate() }
+
+        val state = session.state.value
+        assertEquals(RemoteFunction.POWER, state.function)
+        assertEquals(0, state.candidateIndex)
+    }
+
+    @Test
+    fun `an exhausted sweep moves to the next function`() {
+        val session = swept(order = listOf(RemoteFunction.POWER, second))
+        session.setMode(KeyLabMode.SWEEP)
+        repeat(KeyLabCandidates.CONSUMER_SWEEP.size) { session.nextCandidate() }
+
+        assertEquals(second, session.state.value.function)
+    }
+
+    @Test
+    fun `a sweep walks its range by index and stops at the top`() {
+        val session = swept()
         session.setMode(KeyLabMode.SWEEP)
         session.setSweepRunning(true)
 
@@ -141,8 +165,7 @@ class KeyLabSessionTest {
 
     @Test
     fun `switching mode restarts the sweep and never leaves it running`() {
-        val session = session()
-        session.selectFunction(RemoteFunction.SCREEN_FLIP)
+        val session = swept()
         session.setMode(KeyLabMode.SWEEP)
         session.setSweepRunning(true)
         session.advanceSweep()
@@ -156,11 +179,11 @@ class KeyLabSessionTest {
     @Test
     fun `sweep mode is refused for a function KEY_LAB gives no range`() {
         val session = session()
-        session.selectFunction(RemoteFunction.POWER)
         session.setMode(KeyLabMode.SWEEP)
 
         assertEquals(KeyLabMode.CANDIDATES, session.state.value.mode)
         assertFalse(session.state.value.hasSweep)
+        assertEquals("No scan for this button", session.state.value.copy(mode = KeyLabMode.SWEEP).positionLabel)
     }
 
     @Test
@@ -230,25 +253,26 @@ class KeyLabSessionTest {
 
         session.nextCandidate()
 
-        assertEquals(RemoteFunction.FOCUS_UP, session.state.value.function)
+        assertEquals(RemoteFunction.POWER, session.state.value.function)
         assertEquals(KeyLabMode.MANUAL, session.state.value.mode)
         assertEquals(0x0180, session.state.value.manual.usage)
     }
 
     @Test
     fun `selecting a function starts it clean`() {
-        val session = session()
+        val session = pair()
         session.nextCandidate()
         session.setMode(KeyLabMode.MANUAL)
         session.setManualUsage("0180")
 
-        session.selectFunction(RemoteFunction.SOURCE)
+        session.selectFunction(second)
 
         val state = session.state.value
-        assertEquals(RemoteFunction.SOURCE, state.function)
+        assertEquals(second, state.function)
         assertEquals(0, state.candidateIndex)
         assertEquals(KeyLabMode.CANDIDATES, state.mode)
         assertEquals("", state.manual.usageText)
+        assertEquals("No suggested codes", state.positionLabel)
     }
 
     @Test(expected = IllegalArgumentException::class)

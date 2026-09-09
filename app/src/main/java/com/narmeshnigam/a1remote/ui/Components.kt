@@ -48,7 +48,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** DESIGN_SPEC: disabled keys sit at 45 % opacity and do not react. */
-private const val DISABLED_ALPHA = 0.45f
+internal const val DISABLED_ALPHA = 0.45f
 
 /** DESIGN_SPEC: the cell fills with the press colour for 90 ms. */
 private const val PRESS_FLASH_MS = 90L
@@ -71,6 +71,9 @@ enum class KeyStyle {
  *
  * The press is dispatched on key-**down**, not on release: the remote is used without looking,
  * and auto-repeat (Gate 3) only makes sense on a held key.
+ *
+ * [bordered] is false for a key that lives inside a shared outline — the halves of the volume
+ * rocker — where one border around the pair is what makes the pair read as one control.
  */
 @Composable
 fun A1Key(
@@ -86,6 +89,7 @@ fun A1Key(
     caption: String? = null,
     repeating: Boolean = false,
     tapToClick: Boolean = false,
+    bordered: Boolean = true,
 ) {
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
@@ -107,7 +111,7 @@ fun A1Key(
             .defaultMinSize(minWidth = A1Dimens.MinTouch, minHeight = A1Dimens.MinTouch)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .background(backgroundColor(style, pressed = held || flashing), RectangleShape)
-            .keyBorder(style)
+            .then(if (bordered) Modifier.keyBorder(style) else Modifier)
             .then(
                 if (tapToClick) {
                     // A row inside a scrollable list: only a real tap (down and up with no scroll

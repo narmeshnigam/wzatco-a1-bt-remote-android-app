@@ -1,7 +1,10 @@
 package com.narmeshnigam.a1remote.service
 
 import com.narmeshnigam.a1remote.hid.ConsumerUsage
+import com.narmeshnigam.a1remote.hid.DefaultKeyMap
 import com.narmeshnigam.a1remote.hid.HidReports
+import com.narmeshnigam.a1remote.hid.KeyBinding
+import com.narmeshnigam.a1remote.hid.KeyStatus
 import com.narmeshnigam.a1remote.hid.KeyboardUsage
 import com.narmeshnigam.a1remote.hid.MouseButton
 import com.narmeshnigam.a1remote.hid.RemoteFunction
@@ -48,9 +51,18 @@ class HidLinkTest {
 
     @Test
     fun `an unmapped function transmits nothing at all`() {
-        assertEquals(SendResult.UNMAPPED, HidLink.sendKey(RemoteFunction.SCREEN_FLIP))
-        assertEquals(SendResult.UNMAPPED, HidLink.sendKey(RemoteFunction.KEYSTONE))
-        assertTrue("a function with no mapping must put nothing on the wire", transport.sent.isEmpty())
+        // No shipped function is unmapped now that the four the A1 ignored are gone, so the
+        // binding is made unmapped here. The guarantee is what matters: a key map that knows no
+        // code for a function puts nothing on the wire rather than something nearby.
+        val unmapped = FakeHidTransport(
+            bindings = DefaultKeyMap.all() + mapOf(
+                RemoteFunction.POWER to KeyBinding(null, KeyStatus.UNMAPPED, "unknown"),
+            ),
+        )
+        HidLink.transport = unmapped
+
+        assertEquals(SendResult.UNMAPPED, HidLink.sendKey(RemoteFunction.POWER))
+        assertTrue("a function with no mapping must put nothing on the wire", unmapped.sent.isEmpty())
     }
 
     @Test

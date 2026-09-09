@@ -2,7 +2,6 @@ package com.narmeshnigam.a1remote.hid
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
@@ -41,34 +40,31 @@ class DefaultKeyMapTest {
     }
 
     @Test
-    fun `candidate functions are shipped but marked as guesses`() {
-        val expected = mapOf(
-            RemoteFunction.POWER to HidReports.consumer(0x0030),
-            RemoteFunction.FOCUS_UP to HidReports.consumer(0x022D),
-            RemoteFunction.FOCUS_DOWN to HidReports.consumer(0x022E),
-            RemoteFunction.SOURCE to HidReports.consumer(0x0089),
-        )
-        expected.forEach { (function, report) ->
-            val binding = DefaultKeyMap[function]
-            assertEquals("$function report", report, binding.report)
-            assertEquals("$function status", KeyStatus.CANDIDATE, binding.status)
+    fun `power is shipped but marked as a guess`() {
+        val binding = DefaultKeyMap[RemoteFunction.POWER]
+        assertEquals(HidReports.consumer(0x0030), binding.report)
+        assertEquals(KeyStatus.CANDIDATE, binding.status)
+    }
+
+    @Test
+    fun `power is the only function the shipped table is unsure of`() {
+        val unsure = RemoteFunction.entries.filter { DefaultKeyMap[it].status != KeyStatus.CONFIRMED }
+        assertEquals(listOf(RemoteFunction.POWER), unsure)
+    }
+
+    @Test
+    fun `nothing ships without a report now that the unreachable functions are gone`() {
+        // Focus ±, Source, Flip and Keystone were the four rows that shipped mapped to nothing.
+        // They are no longer functions at all, so the table has no holes left in it.
+        RemoteFunction.entries.forEach { function ->
+            assertNotNull("$function ships with no report", DefaultKeyMap[function].report)
         }
     }
 
     @Test
-    fun `unmapped functions return no report rather than a plausible wrong one`() {
-        listOf(RemoteFunction.SCREEN_FLIP, RemoteFunction.KEYSTONE).forEach { function ->
-            val binding = DefaultKeyMap[function]
-            assertNull("$function must have no report until Key Lab finds one", binding.report)
-            assertEquals(KeyStatus.UNMAPPED, binding.status)
-        }
-    }
-
-    @Test
-    fun `exactly the eight confirmed functions of the build spec are confirmed`() {
-        // BUILD_SPEC §1: eight of the twelve functions map to standard usages. Counting one key
-        // at a time, that is the four arrows plus OK, Back, Home, Menu, the two volume keys
-        // and mute.
+    fun `exactly the eleven confirmed functions of the build spec are confirmed`() {
+        // BUILD_SPEC §1, counting one key at a time: the four arrows plus OK, Back, Home, Menu,
+        // the two volume keys and mute. Power is the twelfth and the only unproven one.
         val confirmed = RemoteFunction.entries.filter { DefaultKeyMap[it].status == KeyStatus.CONFIRMED }
         assertEquals(11, confirmed.size)
         assertEquals(
@@ -97,7 +93,7 @@ class DefaultKeyMapTest {
     @Test
     fun `findings-file names round-trip through the function enum`() {
         // KEY_LAB.md's findings schema uses these exact strings.
-        assertEquals(RemoteFunction.FOCUS_UP, RemoteFunction.valueOf("FOCUS_UP"))
-        assertEquals(RemoteFunction.SCREEN_FLIP, RemoteFunction.valueOf("SCREEN_FLIP"))
+        assertEquals(RemoteFunction.POWER, RemoteFunction.valueOf("POWER"))
+        assertEquals(RemoteFunction.VOLUME_DOWN, RemoteFunction.valueOf("VOLUME_DOWN"))
     }
 }

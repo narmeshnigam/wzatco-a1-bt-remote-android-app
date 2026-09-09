@@ -58,15 +58,15 @@ class KeyLabSweep(val kind: ReportKind, val first: Int, val last: Int, private v
  */
 object KeyLabCandidates {
 
-    /** The functions Key Lab exists to resolve, in the order the operator works through them. */
-    val FUNCTIONS: List<RemoteFunction> = listOf(
-        RemoteFunction.FOCUS_UP,
-        RemoteFunction.FOCUS_DOWN,
-        RemoteFunction.SOURCE,
-        RemoteFunction.SCREEN_FLIP,
-        RemoteFunction.KEYSTONE,
-        RemoteFunction.POWER,
-    )
+    /**
+     * The functions Key Lab exists to resolve, in the order the operator works through them.
+     *
+     * Power off is the last one left. Focus ±, Source, Screen flip and Keystone were taken off
+     * the remote because nothing the app shipped for them moved the projector; most of their
+     * candidate codes were never tried, and what is still unknown about them lives in
+     * `docs/OPEN_QUESTIONS.md` rather than in a button.
+     */
+    val FUNCTIONS: List<RemoteFunction> = listOf(RemoteFunction.POWER)
 
     /** Keyboard 0x68..0x73. KEY_LAB.md names this range F13–F24, so the entries are named that. */
     val HIGH_FUNCTION_KEY_SWEEP = KeyLabSweep(ReportKind.KEYBOARD, 0x68, 0x73) { usage -> "F${usage - 0x68 + 13}" }
@@ -74,9 +74,8 @@ object KeyLabCandidates {
     /**
      * Keyboard 0x3A..0x45 — F1–F12.
      *
-     * The shipped Focus + usage (Consumer `0x022D` Zoom In) draws a key tone from the A1 but moves
-     * nothing, so the usage arrives and no handler wants it. A vendor function bound to a plain
-     * function key is the next thing worth walking, and F1–F12 is inert on Android otherwise: the
+     * The range worth walking when a usage reaches the A1 and no handler wants it: a vendor
+     * function bound to a plain function key. F1–F12 is inert on Android otherwise, so the
      * sweep cannot type, navigate or switch anything off while it runs.
      */
     val LOW_FUNCTION_KEY_SWEEP = KeyLabSweep(ReportKind.KEYBOARD, 0x3A, 0x45) { usage -> "F${usage - 0x3A + 1}" }
@@ -91,38 +90,6 @@ object KeyLabCandidates {
     val CONSUMER_SWEEP = KeyLabSweep(ReportKind.CONSUMER, 0x0180, 0x018F) { usage -> "Consumer 0x%04X".format(usage) }
 
     private val lists: Map<RemoteFunction, List<KeyLabCandidate>> = mapOf(
-        RemoteFunction.FOCUS_UP to listOf(
-            consumer(0x022D, "Zoom In"),
-            keyboard(0x3E, "F5"),
-            consumer(0x0225, "AC Forward"),
-            keyboard(0x57, "Keypad +"),
-            keyboard(0x2E, "Equals"),
-            keyboard(0x4B, "Page Up"),
-            consumer(0x022F, "Zoom"),
-        ),
-        RemoteFunction.FOCUS_DOWN to listOf(
-            consumer(0x022E, "Zoom Out"),
-            keyboard(0x3F, "F6"),
-            keyboard(0x56, "Keypad −"),
-            keyboard(0x2D, "Minus"),
-            keyboard(0x4E, "Page Down"),
-        ),
-        RemoteFunction.SOURCE to listOf(
-            consumer(0x0089, "Media Select TV"),
-            keyboard(0x3D, "F4"),
-            // 0x009C/0x009D are Channel Increment/Decrement in the HID tables. KEY_LAB.md called
-            // 0x009D "Channel +", which is the wrong name for that code; both are listed here now.
-            consumer(0x009C, "Channel Increment"),
-            consumer(0x009D, "Channel Decrement"),
-        ),
-        RemoteFunction.SCREEN_FLIP to listOf(
-            keyboard(0x3C, "F3"),
-            keyboard(0x3A, "F1"),
-        ),
-        RemoteFunction.KEYSTONE to listOf(
-            keyboard(0x3B, "F2"),
-            keyboard(0x40, "F7"),
-        ),
         RemoteFunction.POWER to listOf(
             consumer(0x0030, "Power"),
             consumer(0x0032, "Sleep"),
@@ -130,15 +97,17 @@ object KeyLabCandidates {
         ),
     )
 
-    private val sweeps: Map<RemoteFunction, KeyLabSweep> = mapOf(
-        RemoteFunction.FOCUS_UP to LOW_FUNCTION_KEY_SWEEP,
-        RemoteFunction.FOCUS_DOWN to LOW_FUNCTION_KEY_SWEEP,
-        RemoteFunction.SOURCE to LOW_FUNCTION_KEY_SWEEP,
-        RemoteFunction.SCREEN_FLIP to HIGH_FUNCTION_KEY_SWEEP,
-        RemoteFunction.KEYSTONE to CONSUMER_SWEEP,
-    )
+    /**
+     * Which function gets which sweep — empty, and deliberately so.
+     *
+     * The four functions that had sweeps are gone, and KEY_LAB.md refuses Power one for a
+     * reason worth keeping: a walk that stepped onto a working power-off would take the
+     * projector down before the operator could say which code did it. The ranges above and the
+     * machinery that walks them stay, so attaching a sweep to a new function is one line.
+     */
+    private val sweeps: Map<RemoteFunction, KeyLabSweep> = emptyMap()
 
-    /** The named candidates for [function], in order. Empty for the nine already confirmed. */
+    /** The named candidates for [function], in order. Empty for the ones already confirmed. */
     fun listFor(function: RemoteFunction): List<KeyLabCandidate> = lists[function].orEmpty()
 
     /** The sweep KEY_LAB.md attaches to [function], or null when it names none. */
