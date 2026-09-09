@@ -55,6 +55,8 @@ Roboto Condensed (or the platform condensed face) for headings and the OK glyph;
    | **Vol +** | Home | Back |
    | **Vol −** | Menu | Mute |
 
+   Every key on this block is **icon only** — no text under the glyph. The six of them are told apart by shape and position, which is all a thumb has in the dark anyway, and the labels only crowded the block. Each keeps its name in the accessibility tree.
+
    The volume column is **one key the height of two**: a single outline spanning both rows with a hairline divider across it, Vol + above and Vol − below. Nothing else on the block is that shape, which is what lets a thumb find it without looking. The other four are ordinary key-height cells.
 
 The dial and the block are centred as a group in the height they are given, so spare space on a tall phone falls above and below the pad rather than under it.

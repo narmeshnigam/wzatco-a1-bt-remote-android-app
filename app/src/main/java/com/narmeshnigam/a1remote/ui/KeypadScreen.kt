@@ -204,6 +204,9 @@ private fun FunctionKey(
     A1Key(
         label = label,
         icon = icon,
+        // Icon only. The label stays as the key's name in the accessibility tree — a key with
+        // nothing to call it is unreachable by screen reader — it is simply not drawn.
+        showLabel = false,
         style = styleOf(bindings[function]),
         // A confirmed key needs a live link to send; an unverified key only routes to Fix Keys,
         // so it stays tappable even with no host — it is never a dead button.
@@ -263,6 +266,7 @@ private fun ColumnScope.RockerHalf(
     A1Key(
         label = label,
         icon = icon,
+        showLabel = false,
         style = styleOf(bindings[function]),
         enabled = connected || unverified,
         onPress = { onPress(function) },
